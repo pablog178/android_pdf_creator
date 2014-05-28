@@ -8,54 +8,95 @@
  */
 package com.pablog178.pdfcreator.android;
 
+import java.io.OutputStream;
+import java.util.HashMap;
+
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.annotations.Kroll;
-
-import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.kroll.common.Log;
+import org.appcelerator.titanium.TiApplication;
+import org.appcelerator.titanium.io.TiBaseFile;
+import org.appcelerator.titanium.io.TiFileFactory;
+import org.appcelerator.titanium.proxy.TiViewProxy;
+import org.appcelerator.titanium.view.TiUIView;
+
+import android.graphics.pdf.PdfDocument;
+import android.graphics.pdf.PdfDocument.Page;
+import android.graphics.pdf.PdfDocument.PageInfo;
+import android.view.View;
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
 public class PdfcreatorModule extends KrollModule
 {
 
 	// Standard Debugging variables
-	private static final String TAG = "PdfcreatorModule";
+	private static final String MODULE_NAME = "PdfcreatorModule";
+	private static final String PROXY_NAME = "PDF_PROXY";
+
+	// Private members
+	private TiUIView view;
+	private String fileName = "default_name.pdf";
 
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
 	
-	public PdfcreatorModule()
-	{
+	public PdfcreatorModule(){
 		super();
 	}
 
 	@Kroll.onAppCreate
 	public static void onAppCreate(TiApplication app)
 	{
-		Log.d(TAG, "inside onAppCreate");
+		Log.d(MODULE_NAME, "inside onAppCreate");
 		// put module init code that needs to run when the application is created
 	}
 
 	// Methods
+
+	/**
+	 * Generates a new PDF based on the given view, withe the given fileName on the app directory
+	 */
 	@Kroll.method
-	public String example()
-	{
-		Log.d(TAG, "example called");
-		return "hello world";
-	}
-	
-	// Properties
-	@Kroll.getProperty
-	public String getExampleProp()
-	{
-		Log.d(TAG, "get example property");
-		return "hello world";
-	}
-	
-	
-	@Kroll.setProperty
-	public void setExampleProp(String value) {
-		Log.d(TAG, "set example property: " + value);
+	public void generatePDF(HashMap args){
+		if(args.containsKey("view")){
+			Object viewObject = args.get("view");
+			if(viewObject instanceof TiViewProxy){
+				this.view = ((TiViewProxy) viewObject).peekView();
+				Log.i(PROXY_NAME, "view: " + this.view.toString());
+			}
+		}
+
+		if(args.containsKey("fileName")){
+			Object fileName = args.get("fileName");
+			if(fileName instanceof String){
+				this.fileName = (String) fileName;
+				Log.i(PROXY_NAME, "fileName: " + this.fileName);
+			}
+		}
+
+
+		Log.i(PROXY_NAME, "generatePDF()");
+		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
+		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
+		try {
+			OutputStream 	outputStream 	= file.getOutputStream();
+			PdfDocument 	pdfDocument 	= new PdfDocument();
+			PageInfo 		pageInfo 		= new PageInfo.Builder(612, 792, 2).create();
+			Page 			page 			= pdfDocument.startPage(pageInfo);
+
+			View 			view 			= this.view.getNativeView();
+
+			view.draw(page.getCanvas());
+
+			pdfDocument.finishPage(page);
+
+			pdfDocument.writeTo(outputStream);
+
+			pdfDocument.close();
+
+		} catch (Exception exception){
+			Log.i(PROXY_NAME, "Error: " + exception.toString());
+		}
 	}
 
 }
