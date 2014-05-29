@@ -6,34 +6,39 @@
 
 // open a single window
 var win = Ti.UI.createWindow({
-	backgroundColor:'white'
+	backgroundColor:'red'
 });
-var label = Ti.UI.createLabel();
-win.add(label);
+
+var webView = Ti.UI.createWebView({
+	url : 'http://apple.com'
+});
+
+win.add(webView);
 win.open();
 
+webView.addEventListener('load', generate);
+
 // TODO: write your module tests here
-var pdfcreator = require('com.pablog178.pdfcreator.android');
-Ti.API.info("module is => " + pdfcreator);
 
-label.text = pdfcreator.example();
 
-Ti.API.info("module exampleProp is => " + pdfcreator.exampleProp);
-pdfcreator.exampleProp = "This is a test value";
+function generate () {
+	if (Ti.Platform.name == "android") {
+		var fileName = Date.now() + 'myPDF.pdf';
+		
+		var pdfcreator = require('com.pablog178.pdfcreator.android');
+		
+		pdfcreator.generatePDF({
+			view : webView,
+			fileName : fileName
+		});
 
-if (Ti.Platform.name == "android") {
-	var proxy = pdfcreator.createExample({
-		message: "Creating an example Proxy",
-		backgroundColor: "red",
-		width: 100,
-		height: 100,
-		top: 100,
-		left: 150
-	});
-
-	proxy.printMessage("Hello world!");
-	proxy.message = "Hi world!.  It's me again.";
-	proxy.printMessage("Hello world!");
-	win.add(proxy);
+		var f = Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory, fileName);
+	    // Ti.Android.currentActivity.startActivity(Ti.Android.createIntent({
+	    //     action: Ti.Android.ACTION_VIEW,
+	    //     type: 'application/pdf',
+	    //     data: f.getNativePath()
+	    // }));
+		
+	}
 }
 
