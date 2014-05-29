@@ -10,6 +10,9 @@ var win = Ti.UI.createWindow({
 });
 
 var webView = Ti.UI.createWebView({
+	width : 0,
+	height : 0,
+	scalesPageToFit : true,
 	url : 'http://apple.com'
 });
 

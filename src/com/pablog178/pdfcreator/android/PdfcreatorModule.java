@@ -20,17 +20,17 @@ import org.appcelerator.titanium.io.TiFileFactory;
 import org.appcelerator.titanium.proxy.TiViewProxy;
 import org.appcelerator.titanium.view.TiUIView;
 
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.drawable.Drawable;
 import android.graphics.pdf.PdfDocument;
 import android.graphics.pdf.PdfDocument.Page;
 import android.graphics.pdf.PdfDocument.PageInfo;
 import android.view.View;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.content.res.Resources;
-import android.graphics.Matrix;
+import android.webkit.WebView;
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
 public class PdfcreatorModule extends KrollModule
@@ -104,10 +104,13 @@ public class PdfcreatorModule extends KrollModule
 			PageInfo 		pageInfo 		= new PageInfo.Builder(PDF_WIDTH, PDF_HEIGHT, 1).create();
 			Page 			page 			= pdfDocument.startPage(pageInfo);
 
-			
-			View 			view 			= this.view.getNativeView();
-			int 			viewWidth 		= view.getWidth();
-			int 			viewHeight 		= view.getHeight();
+
+			WebView 		view 			= (WebView) this.view.getNativeView();
+			int 			viewWidth 		= view.capturePicture().getWidth();
+			int 			viewHeight 		= view.capturePicture().getHeight();
+
+			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
+			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
 
 			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
 			float 			density 		= appResources.getDisplayMetrics().density;
@@ -126,10 +129,15 @@ public class PdfcreatorModule extends KrollModule
 			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
 			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
 
-			matrix.setScale(1.3f, 1.3f);
+			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
+			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
+
+			matrix.setScale(scaleFactorWidth, scaleFactorWidth);
 
 			Canvas pdfCanvas = page.getCanvas();
 			pdfCanvas.drawBitmap(viewBitmap, matrix, null);
+
+			// view.draw(page.getCanvas());
 
 			pdfDocument.finishPage(page);
 			pdfDocument.writeTo(outputStream);
