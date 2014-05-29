@@ -65,10 +65,22 @@ public class PdfcreatorModule extends KrollModule
 	/**
 	 * Generates a new PDF based on the given view, withe the given fileName on the app directory
 	 */
-	@Kroll.method
-	public void generatePDF(HashMap args){
+	@Kroll.method(runOnUiThread=true)
+	public void generatePDF(final HashMap args){
 		Log.i(PROXY_NAME, "generatePDF()");
 
+		if(TiApplication.isUIThread()){
+			generatePDFmethod(args);
+		} else {
+			app.getCurrentActivity().runOnUiThread(new Runnable(){
+				public void run(){
+					generatePDFmethod(args);
+				}
+			});
+		}
+	}
+
+	private void generatePDFmethod(HashMap args){
 		if(args.containsKey("fileName")){
 			Object fileName = args.get("fileName");
 			if(fileName instanceof String){
@@ -99,6 +111,8 @@ public class PdfcreatorModule extends KrollModule
 			OutputStream 	outputStream 	= file.getOutputStream();
 			final int 		PDF_WIDTH 		= 612;
 			final int 		PDF_HEIGHT 		= 792;
+			int viewWidth = 1600;
+			int viewHeight = 1;
 			
 			PdfDocument 	pdfDocument 	= new PdfDocument();
 			PageInfo 		pageInfo 		= new PageInfo.Builder(PDF_WIDTH, PDF_HEIGHT, 1).create();
@@ -106,8 +120,14 @@ public class PdfcreatorModule extends KrollModule
 
 
 			WebView 		view 			= (WebView) this.view.getNativeView();
-			int 			viewWidth 		= view.capturePicture().getWidth();
-			int 			viewHeight 		= view.capturePicture().getHeight();
+
+			if (TiApplication.isUIThread()) {
+
+				viewWidth 		= view.capturePicture().getWidth();
+				viewHeight 		= view.capturePicture().getHeight();
+			} else {
+				Log.e(PROXY_NAME, "NO UI THREAD");				
+			}
 
 			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
 			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
