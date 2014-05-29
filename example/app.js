@@ -31,7 +31,8 @@ function generate () {
 	
 	pdfcreator.generatePDF({
 		view : webView,
-		fileName : fileName
+		fileName : fileName,
+		shrinking : 1.0
 	});
 
 }

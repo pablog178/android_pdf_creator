@@ -12,7 +12,6 @@ import java.io.OutputStream;
 import java.util.HashMap;
 
 import org.appcelerator.kroll.KrollDict;
-import org.appcelerator.kroll.KrollFunction;
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.kroll.common.Log;
@@ -20,6 +19,7 @@ import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.titanium.io.TiBaseFile;
 import org.appcelerator.titanium.io.TiFileFactory;
 import org.appcelerator.titanium.proxy.TiViewProxy;
+import org.appcelerator.titanium.util.TiConvert;
 import org.appcelerator.titanium.view.TiUIView;
 
 import android.content.res.Resources;
@@ -31,7 +31,6 @@ import android.graphics.drawable.Drawable;
 import android.graphics.pdf.PdfDocument;
 import android.graphics.pdf.PdfDocument.Page;
 import android.graphics.pdf.PdfDocument.PageInfo;
-import android.view.View;
 import android.webkit.WebView;
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
@@ -46,6 +45,7 @@ public class PdfcreatorModule extends KrollModule
 	private static TiApplication app;
 	private TiUIView 	view 	= null;
 	private String 		fileName = "default_name.pdf";
+	private float 		shrinking = 1f;
 
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
@@ -104,6 +104,10 @@ public class PdfcreatorModule extends KrollModule
 			}
 		} else return;
 
+		if(args.containsKey("shrinking")){
+			this.shrinking = TiConvert.toFloat(args.get("shrinking"));
+		}
+
 
 
 		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
@@ -154,12 +158,23 @@ public class PdfcreatorModule extends KrollModule
 			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
 			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
 
-			matrix.setScale(scaleFactorWidth, scaleFactorWidth);
+			matrix.setScale(scaleFactorWidth * this.shrinking, scaleFactorWidth * this.shrinking);
+
+			Bitmap shrinkedBitmap = Bitmap.createBitmap((int)(viewWidth * scaleFactorWidth * this.shrinking),
+														(int)(viewHeight * scaleFactorWidth * this.shrinking),
+														Bitmap.Config.ARGB_8888);
+
+			Canvas shrinkedCanvas = new Canvas(shrinkedBitmap);
+
+			shrinkedCanvas.drawBitmap(viewBitmap, matrix, null);
+
+			Matrix newMatrix = new Matrix();
+			newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
+
 
 			Canvas pdfCanvas = page.getCanvas();
-			pdfCanvas.drawBitmap(viewBitmap, matrix, null);
-
-			// view.draw(page.getCanvas());
+			pdfCanvas.drawBitmap(shrinkedBitmap, newMatrix, null);
+			// pdfCanvas.drawBitmap(viewBitmap, matrix, null);
 
 			pdfDocument.finishPage(page);
 			pdfDocument.writeTo(outputStream);
