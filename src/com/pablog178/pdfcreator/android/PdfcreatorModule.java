@@ -34,8 +34,8 @@ public class PdfcreatorModule extends KrollModule
 	private static final String PROXY_NAME = "PDF_PROXY";
 
 	// Private members
-	private TiUIView view;
-	private String fileName = "default_name.pdf";
+	private TiUIView 	view 	= null;
+	private String 		fileName = "default_name.pdf";
 
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
@@ -58,13 +58,7 @@ public class PdfcreatorModule extends KrollModule
 	 */
 	@Kroll.method
 	public void generatePDF(HashMap args){
-		if(args.containsKey("view")){
-			Object viewObject = args.get("view");
-			if(viewObject instanceof TiViewProxy){
-				this.view = ((TiViewProxy) viewObject).peekView();
-				Log.i(PROXY_NAME, "view: " + this.view.toString());
-			}
-		}
+		Log.i(PROXY_NAME, "generatePDF()");
 
 		if(args.containsKey("fileName")){
 			Object fileName = args.get("fileName");
@@ -72,10 +66,23 @@ public class PdfcreatorModule extends KrollModule
 				this.fileName = (String) fileName;
 				Log.i(PROXY_NAME, "fileName: " + this.fileName);
 			}
-		}
+		} else return;
+
+		if(args.containsKey("view")){
+			Object viewObject = args.get("view");
+			if(viewObject instanceof TiViewProxy){
+				TiViewProxy viewProxy = (TiViewProxy) viewObject;
+				this.view = viewProxy.getOrCreateView();
+				if(this.view == null){
+					Log.e(PROXY_NAME, "NO VIEW was created!!");
+					return;
+				}
+				Log.i(PROXY_NAME, "view: " + this.view.toString());
+			}
+		} else return;
 
 
-		Log.i(PROXY_NAME, "generatePDF()");
+
 		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
 		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
 		try {
