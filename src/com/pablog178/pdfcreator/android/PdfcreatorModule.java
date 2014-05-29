@@ -24,6 +24,13 @@ import android.graphics.pdf.PdfDocument;
 import android.graphics.pdf.PdfDocument.Page;
 import android.graphics.pdf.PdfDocument.PageInfo;
 import android.view.View;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.content.res.Resources;
+import android.graphics.Matrix;
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
 public class PdfcreatorModule extends KrollModule
@@ -34,6 +41,7 @@ public class PdfcreatorModule extends KrollModule
 	private static final String PROXY_NAME = "PDF_PROXY";
 
 	// Private members
+	private static TiApplication app;
 	private TiUIView 	view 	= null;
 	private String 		fileName = "default_name.pdf";
 
@@ -45,9 +53,10 @@ public class PdfcreatorModule extends KrollModule
 	}
 
 	@Kroll.onAppCreate
-	public static void onAppCreate(TiApplication app)
+	public static void onAppCreate(TiApplication myApp)
 	{
 		Log.d(MODULE_NAME, "inside onAppCreate");
+		app = myApp;
 		// put module init code that needs to run when the application is created
 	}
 
@@ -86,25 +95,49 @@ public class PdfcreatorModule extends KrollModule
 		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
 		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
 		try {
+			Resources 		appResources 	= app.getResources();
 			OutputStream 	outputStream 	= file.getOutputStream();
+			final int 		PDF_WIDTH 		= 612;
+			final int 		PDF_HEIGHT 		= 792;
+			
 			PdfDocument 	pdfDocument 	= new PdfDocument();
-			PageInfo 		pageInfo 		= new PageInfo.Builder(612, 792, 2).create();
+			PageInfo 		pageInfo 		= new PageInfo.Builder(PDF_WIDTH, PDF_HEIGHT, 1).create();
 			Page 			page 			= pdfDocument.startPage(pageInfo);
 
+			
 			View 			view 			= this.view.getNativeView();
+			int 			viewWidth 		= view.getWidth();
+			int 			viewHeight 		= view.getHeight();
 
-			view.draw(page.getCanvas());
+			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
+			float 			density 		= appResources.getDisplayMetrics().density;
+
+			Canvas 			canvas 			= new Canvas(viewBitmap);
+			Matrix 			matrix 			= new Matrix();
+
+			Drawable bgDrawable = view.getBackground();
+	        if (bgDrawable != null){
+				bgDrawable.draw(canvas);
+			} else {
+				canvas.drawColor(Color.WHITE);
+			}
+			view.draw(canvas);
+
+			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
+			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
+
+			matrix.setScale(1.3f, 1.3f);
+
+			Canvas pdfCanvas = page.getCanvas();
+			pdfCanvas.drawBitmap(viewBitmap, matrix, null);
 
 			pdfDocument.finishPage(page);
-
 			pdfDocument.writeTo(outputStream);
-
 			pdfDocument.close();
 
 		} catch (Exception exception){
-			Log.i(PROXY_NAME, "Error: " + exception.toString());
+			Log.e(PROXY_NAME, "Error: " + exception.toString());
 		}
 	}
-
 }
 

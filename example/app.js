@@ -23,7 +23,7 @@ webView.addEventListener('load', generate);
 
 function generate () {
 	if (Ti.Platform.name == "android") {
-		var fileName = Date.now() + 'myPDF.pdf';
+		var fileName = 'myPDF.pdf';
 		
 		var pdfcreator = require('com.pablog178.pdfcreator.android');
 		
