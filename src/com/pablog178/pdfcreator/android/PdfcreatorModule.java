@@ -11,6 +11,8 @@ package com.pablog178.pdfcreator.android;
 import java.io.OutputStream;
 import java.util.HashMap;
 
+import org.appcelerator.kroll.KrollDict;
+import org.appcelerator.kroll.KrollFunction;
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.kroll.common.Log;
@@ -163,9 +165,30 @@ public class PdfcreatorModule extends KrollModule
 			pdfDocument.writeTo(outputStream);
 			pdfDocument.close();
 
+			sendCompleteEvent();
+
 		} catch (Exception exception){
 			Log.e(PROXY_NAME, "Error: " + exception.toString());
+			sendErrorEvent(exception.toString());
 		}
+	}
+
+	// method to invoke success callback
+	private void sendCompleteEvent() {
+	    if (this.hasListeners("complete")) {
+	        KrollDict props = new KrollDict();
+	        props.put("fileName", this.fileName);
+	        this.fireEvent("complete", props);
+	    }
+	}
+
+	// method to invoke error callback
+	private void sendErrorEvent(String message) {
+	    if (this.hasListeners("error")) {
+	        KrollDict props = new KrollDict();
+	        props.put("message", message);
+	        this.fireEvent("error", props);
+	    }
 	}
 }
 

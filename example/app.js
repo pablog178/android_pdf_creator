@@ -5,6 +5,7 @@
 
 
 // open a single window
+var pdfcreator = require('com.pablog178.pdfcreator.android');
 var win = Ti.UI.createWindow({
 	backgroundColor:'red'
 });
@@ -19,29 +20,34 @@ var webView = Ti.UI.createWebView({
 win.add(webView);
 win.open();
 
+pdfcreator.addEventListener('complete', completeEvent);
+pdfcreator.addEventListener('error', errorEvent);
 webView.addEventListener('load', generate);
-
 // TODO: write your module tests here
 
 
 function generate () {
-	if (Ti.Platform.name == "android") {
-		var fileName = 'myPDF.pdf';
-		
-		var pdfcreator = require('com.pablog178.pdfcreator.android');
-		
-		pdfcreator.generatePDF({
-			view : webView,
-			fileName : fileName
-		});
+	var fileName = 'myPDF.pdf';
+	
+	pdfcreator.generatePDF({
+		view : webView,
+		fileName : fileName
+	});
 
-		var f = Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory, fileName);
-	    // Ti.Android.currentActivity.startActivity(Ti.Android.createIntent({
-	    //     action: Ti.Android.ACTION_VIEW,
-	    //     type: 'application/pdf',
-	    //     data: f.getNativePath()
-	    // }));
-		
-	}
 }
 
+function completeEvent(evt) {
+	Ti.API.info("COMPLETED!");
+	alert('PDf file created!');
+	// var f = Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory, fileName);
+    // Ti.Android.currentActivity.startActivity(Ti.Android.createIntent({
+    //     action: Ti.Android.ACTION_VIEW,
+    //     type: 'application/pdf',
+    //     data: f.getNativePath()
+    // }));
+	
+}
+
+function errorEvent (evt) {
+	alert('An error ocurred!: ' + JSON.stringify(evt, null, ' '));
+}
