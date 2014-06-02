@@ -14,7 +14,7 @@ var webView = Ti.UI.createWebView({
 	width : 0,
 	height : 0,
 	scalesPageToFit : true,
-	url : 'http://apple.com'
+	url : 'http://na.leagueoflegends.com/'
 });
 
 win.add(webView);
@@ -22,9 +22,8 @@ win.open();
 
 pdfcreator.addEventListener('complete', completeEvent);
 pdfcreator.addEventListener('error', errorEvent);
-// webView.addEventListener('load', generatePDF);
-webView.addEventListener('load', generateImage);
-// TODO: write your module tests here
+webView.addEventListener('load', generatePDF);
+// webView.addEventListener('load', generateImage);
 
 
 function generatePDF () {

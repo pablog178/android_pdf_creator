@@ -32,6 +32,7 @@ import android.graphics.pdf.PdfDocument;
 import android.graphics.pdf.PdfDocument.Page;
 import android.graphics.pdf.PdfDocument.PageInfo;
 import android.webkit.WebView;
+import android.graphics.Paint;
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
 public class PdfcreatorModule extends KrollModule
@@ -137,7 +138,6 @@ public class PdfcreatorModule extends KrollModule
 			
 			PdfDocument 	pdfDocument 	= new PdfDocument();
 			PageInfo 		pageInfo 		= new PageInfo.Builder(PDF_WIDTH, PDF_HEIGHT, 1).create();
-			Page 			page 			= pdfDocument.startPage(pageInfo);
 
 
 			WebView 		view 			= (WebView) this.view.getNativeView();
@@ -153,6 +153,13 @@ public class PdfcreatorModule extends KrollModule
 			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
 			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
 
+			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
+			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
+
+			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
+			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
+
+
 			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
 			float 			density 		= appResources.getDisplayMetrics().density;
 
@@ -167,11 +174,6 @@ public class PdfcreatorModule extends KrollModule
 			}
 			view.draw(canvas);
 
-			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
-			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
-
-			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
-			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
 
 			matrix.setScale(scaleFactorWidth * this.shrinking, scaleFactorWidth * this.shrinking);
 
@@ -186,12 +188,25 @@ public class PdfcreatorModule extends KrollModule
 			Matrix newMatrix = new Matrix();
 			newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
 
+			float yFactor = 0;
 
-			Canvas pdfCanvas = page.getCanvas();
-			pdfCanvas.drawBitmap(shrinkedBitmap, newMatrix, null);
-			// pdfCanvas.drawBitmap(viewBitmap, matrix, null);
+			do{
 
-			pdfDocument.finishPage(page);
+				// newMatrix.setTranslate(0, yFactor + -1);
+				newMatrix.setTranslate(0, -yFactor * 1 / this.shrinking);
+				
+				Page page = pdfDocument.startPage(pageInfo);
+				
+				Canvas pdfCanvas = page.getCanvas();
+				pdfCanvas.drawBitmap(shrinkedBitmap, newMatrix, null);
+
+				pdfDocument.finishPage(page);
+
+				yFactor += PDF_HEIGHT;
+				Log.i(PROXY_NAME, "yFactor: " + yFactor);
+			}while(yFactor < viewHeight * scaleFactorWidth);
+
+
 			pdfDocument.writeTo(outputStream);
 			pdfDocument.close();
 
