@@ -72,17 +72,32 @@ public class PdfcreatorModule extends KrollModule
 		Log.i(PROXY_NAME, "generatePDF()");
 
 		if(TiApplication.isUIThread()){
-			generatePDFmethod(args);
+			generatePDFfunction(args);
 		} else {
 			app.getCurrentActivity().runOnUiThread(new Runnable(){
 				public void run(){
-					generatePDFmethod(args);
+					generatePDFfunction(args);
 				}
 			});
 		}
 	}
 
-	private void generatePDFmethod(HashMap args){
+	@Kroll.method(runOnUiThread=true)
+	public void generateImage(final HashMap args){
+		Log.i(PROXY_NAME, "generateImage()");
+
+		if(TiApplication.isUIThread()){
+			generateImageFunction(args);
+		} else {
+			app.getCurrentActivity().runOnUiThread(new Runnable(){
+				public void run(){
+					generateImageFunction(args);
+				}
+			});
+		}
+	}
+
+	private void generatePDFfunction(HashMap args){
 		if(args.containsKey("fileName")){
 			Object fileName = args.get("fileName");
 			if(fileName instanceof String){
@@ -179,6 +194,113 @@ public class PdfcreatorModule extends KrollModule
 			pdfDocument.finishPage(page);
 			pdfDocument.writeTo(outputStream);
 			pdfDocument.close();
+
+			sendCompleteEvent();
+
+		} catch (Exception exception){
+			Log.e(PROXY_NAME, "Error: " + exception.toString());
+			sendErrorEvent(exception.toString());
+		}
+	}
+
+	private void generateImageFunction(HashMap args){
+		if(args.containsKey("fileName")){
+			Object fileName = args.get("fileName");
+			if(fileName instanceof String){
+				this.fileName = (String) fileName;
+				Log.i(PROXY_NAME, "fileName: " + this.fileName);
+			}
+		} else return;
+
+		if(args.containsKey("view")){
+			Object viewObject = args.get("view");
+			if(viewObject instanceof TiViewProxy){
+				TiViewProxy viewProxy = (TiViewProxy) viewObject;
+				this.view = viewProxy.getOrCreateView();
+				if(this.view == null){
+					Log.e(PROXY_NAME, "NO VIEW was created!!");
+					return;
+				}
+				Log.i(PROXY_NAME, "view: " + this.view.toString());
+			}
+		} else return;
+
+		if(args.containsKey("shrinking")){
+			this.shrinking = TiConvert.toFloat(args.get("shrinking"));
+		}
+
+
+
+		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
+		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
+		try {
+			final int 		PDF_WIDTH 		= 612;
+			final int 		PDF_HEIGHT 		= 792;
+			Resources 		appResources 	= app.getResources();
+			OutputStream 	outputStream 	= file.getOutputStream();
+			int viewWidth = 1600;
+			int viewHeight = 1;
+			
+			WebView 		view 			= (WebView) this.view.getNativeView();
+
+			if (TiApplication.isUIThread()) {
+
+				viewWidth 		= view.capturePicture().getWidth();
+				viewHeight 		= view.capturePicture().getHeight();
+			} else {
+				Log.e(PROXY_NAME, "NO UI THREAD");				
+			}
+
+			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
+			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
+
+			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
+			float 			density 		= appResources.getDisplayMetrics().density;
+
+			Canvas 			canvas 			= new Canvas(viewBitmap);
+			Matrix 			matrix 			= new Matrix();
+
+			Drawable bgDrawable = view.getBackground();
+	        if (bgDrawable != null){
+				bgDrawable.draw(canvas);
+			} else {
+				canvas.drawColor(Color.WHITE);
+			}
+			view.draw(canvas);
+
+			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
+			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
+
+			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
+			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
+
+			// matrix.setScale(scaleFactorWidth * this.shrinking, scaleFactorWidth * this.shrinking);
+			matrix.setScale(scaleFactorWidth, scaleFactorWidth);
+
+			Bitmap imageBitmap = Bitmap.createBitmap(PDF_WIDTH, PDF_HEIGHT, Bitmap.Config.ARGB_8888);
+			Canvas imageCanvas = new Canvas(imageBitmap);
+			imageCanvas.drawBitmap(viewBitmap, matrix, null);
+			imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+
+			// Bitmap shrinkedBitmap = Bitmap.createBitmap((int)(viewWidth * scaleFactorWidth * this.shrinking),
+			// 											(int)(viewHeight * scaleFactorWidth * this.shrinking),
+			// 											Bitmap.Config.ARGB_8888);
+
+			// Canvas shrinkedCanvas = new Canvas(shrinkedBitmap);
+
+			// shrinkedCanvas.drawBitmap(viewBitmap, matrix, null);
+
+			// Matrix newMatrix = new Matrix();
+			// newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
+
+
+			// Canvas pdfCanvas = page.getCanvas();
+			// pdfCanvas.drawBitmap(shrinkedBitmap, newMatrix, null);
+			// pdfCanvas.drawBitmap(viewBitmap, matrix, null);
+
+			// pdfDocument.finishPage(page);
+			// pdfDocument.writeTo(outputStream);
+			// pdfDocument.close();
 
 			sendCompleteEvent();
 

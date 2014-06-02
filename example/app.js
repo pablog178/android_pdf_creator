@@ -22,11 +22,12 @@ win.open();
 
 pdfcreator.addEventListener('complete', completeEvent);
 pdfcreator.addEventListener('error', errorEvent);
-webView.addEventListener('load', generate);
+// webView.addEventListener('load', generatePDF);
+webView.addEventListener('load', generateImage);
 // TODO: write your module tests here
 
 
-function generate () {
+function generatePDF () {
 	var fileName = 'myPDF.pdf';
 	
 	pdfcreator.generatePDF({
@@ -35,6 +36,15 @@ function generate () {
 		shrinking : 1.0
 	});
 
+}
+
+function generateImage () {
+	var fileName = 'myImage.png';
+
+	pdfcreator.generateImage({
+		view : webView,
+		fileName : fileName
+	});
 }
 
 function completeEvent(evt) {
