@@ -14,7 +14,7 @@ var webView = Ti.UI.createWebView({
 	width : 0,
 	height : 0,
 	scalesPageToFit : true,
-	url : 'http://na.leagueoflegends.com/'
+	url : 'http://store.apple.com/us'
 });
 
 win.add(webView);
@@ -22,8 +22,18 @@ win.open();
 
 pdfcreator.addEventListener('complete', completeEvent);
 pdfcreator.addEventListener('error', errorEvent);
-webView.addEventListener('load', generatePDF);
+webView.addEventListener('load', generateWebArchive);
+// webView.addEventListener('load', generatePDF);
 // webView.addEventListener('load', generateImage);
+
+function generateWebArchive () {
+	var fileName = "myWebArchive.mhtml";
+
+	pdfcreator.generateWebArchive({
+		view : webView,
+		fileName : fileName
+	});
+}
 
 
 function generatePDF () {
@@ -32,7 +42,7 @@ function generatePDF () {
 	pdfcreator.generatePDF({
 		view : webView,
 		fileName : fileName,
-		shrinking : 1.0
+		shrinking : 1.3
 	});
 
 }

@@ -10,6 +10,7 @@ package com.pablog178.pdfcreator.android;
 
 import java.io.OutputStream;
 import java.util.HashMap;
+import java.io.File;
 
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollModule;
@@ -32,6 +33,7 @@ import android.graphics.pdf.PdfDocument;
 import android.graphics.pdf.PdfDocument.Page;
 import android.graphics.pdf.PdfDocument.PageInfo;
 import android.webkit.WebView;
+import android.view.View;
 import android.graphics.Paint;
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
@@ -98,6 +100,21 @@ public class PdfcreatorModule extends KrollModule
 		}
 	}
 
+	@Kroll.method(runOnUiThread=true)
+	public void generateWebArchive(final HashMap args){
+		Log.i(PROXY_NAME, "generateWebArchive()");
+
+		if(TiApplication.isUIThread()){
+			generateWebArchiveFunction(args);
+		} else {
+			app.getCurrentActivity().runOnUiThread(new Runnable(){
+				public void run(){
+					generateWebArchiveFunction(args);
+				}
+			});
+		}
+	}
+
 	private void generatePDFfunction(HashMap args){
 		if(args.containsKey("fileName")){
 			Object fileName = args.get("fileName");
@@ -122,6 +139,7 @@ public class PdfcreatorModule extends KrollModule
 
 		if(args.containsKey("shrinking")){
 			this.shrinking = TiConvert.toFloat(args.get("shrinking"));
+			Log.i(PROXY_NAME, "this.shrinking: " + this.shrinking);
 		}
 
 
@@ -150,6 +168,7 @@ public class PdfcreatorModule extends KrollModule
 				Log.e(PROXY_NAME, "NO UI THREAD");				
 			}
 
+			view.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
 			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
 			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
 
@@ -165,6 +184,10 @@ public class PdfcreatorModule extends KrollModule
 
 			Canvas 			canvas 			= new Canvas(viewBitmap);
 			Matrix 			matrix 			= new Matrix();
+
+			Paint paintAntialias = new Paint();
+			paintAntialias.setAntiAlias(true);
+			paintAntialias.setFilterBitmap(true);
 
 			Drawable bgDrawable = view.getBackground();
 	        if (bgDrawable != null){
@@ -183,22 +206,22 @@ public class PdfcreatorModule extends KrollModule
 
 			Canvas shrinkedCanvas = new Canvas(shrinkedBitmap);
 
-			shrinkedCanvas.drawBitmap(viewBitmap, matrix, null);
+			shrinkedCanvas.drawBitmap(viewBitmap, matrix, paintAntialias);
 
-			Matrix newMatrix = new Matrix();
-			newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
 
 			float yFactor = 0;
 
 			do{
+				Matrix newMatrix = new Matrix();
+				newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
 
 				// newMatrix.setTranslate(0, yFactor + -1);
-				newMatrix.setTranslate(0, -yFactor * 1 / this.shrinking);
+				newMatrix.postTranslate(0, -yFactor /** 1 / this.shrinking*/);
 				
 				Page page = pdfDocument.startPage(pageInfo);
 				
 				Canvas pdfCanvas = page.getCanvas();
-				pdfCanvas.drawBitmap(shrinkedBitmap, newMatrix, null);
+				pdfCanvas.drawBitmap(shrinkedBitmap, newMatrix, paintAntialias);
 
 				pdfDocument.finishPage(page);
 
@@ -323,6 +346,40 @@ public class PdfcreatorModule extends KrollModule
 			Log.e(PROXY_NAME, "Error: " + exception.toString());
 			sendErrorEvent(exception.toString());
 		}
+	}
+
+	private void generateWebArchiveFunction(HashMap args){
+		if(args.containsKey("fileName")){
+			Object fileName = args.get("fileName");
+			if(fileName instanceof String){
+				this.fileName = (String) fileName;
+				Log.i(PROXY_NAME, "fileName: " + this.fileName);
+			}
+		} else return;
+
+		if(args.containsKey("view")){
+			Object viewObject = args.get("view");
+			if(viewObject instanceof TiViewProxy){
+				TiViewProxy viewProxy = (TiViewProxy) viewObject;
+				this.view = viewProxy.getOrCreateView();
+				if(this.view == null){
+					Log.e(PROXY_NAME, "NO VIEW was created!!");
+					return;
+				}
+				Log.i(PROXY_NAME, "view: " + this.view.toString());
+			}
+		} else return;
+
+		try{
+			WebView webView = (WebView) this.view.getNativeView();
+			webView.saveWebArchive(TiFileFactory.getDataDirectory(true).getAbsolutePath() + File.separator + this.fileName);
+			sendCompleteEvent();
+		} catch(Exception exception){
+			Log.e(PROXY_NAME, "Error: " + exception.toString());
+			sendErrorEvent(exception.toString());
+		}
+
+
 	}
 
 	// method to invoke success callback
