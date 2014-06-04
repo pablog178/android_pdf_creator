@@ -52,9 +52,10 @@ public class PdfcreatorModule extends KrollModule
 
 	// Private members
 	private static TiApplication app;
-	private TiUIView 	view 	= null;
-	private String 		fileName = "default_name.pdf";
-	private float 		shrinking = 1f;
+	private TiUIView 	view 		= null;
+	private String 		fileName 	= "default_name.pdf";
+	private float 		shrinking 	= 1f;
+	private int 		quality 	= 100;
 
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
@@ -405,6 +406,10 @@ public class PdfcreatorModule extends KrollModule
 			}
 		} else return;
 
+		if(args.containsKey("quality")){
+			this.quality = TiConvert.toInt(args.get("quality"));
+		}
+
 
 		TiBaseFile 		file 			= TiFileFactory.createTitaniumFile(this.fileName, true);
 		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
@@ -413,12 +418,13 @@ public class PdfcreatorModule extends KrollModule
 
 			Resources 		appResources 	= app.getResources();
 			OutputStream 	outputStream 	= file.getOutputStream();
-			final int 		PDF_WIDTH 		= 595; // A4 //612; //Letter 
-			final int 		PDF_HEIGHT 		= 842; // A4 //792; //Letter
+			final int 		MARGIN 			= 0;
+			final int 		PDF_WIDTH 		= 595 - MARGIN * 2; // A4 //612; //Letter 
+			final int 		PDF_HEIGHT 		= 842 - MARGIN * 2; // A4 //792; //Letter
 			int 			viewWidth 		= 1600;
 			int 			viewHeight 		= 1;
 			
-			Document 		pdfDocument 	= new Document(PageSize.A4, 10, 10, 10, 10);
+			Document 		pdfDocument 	= new Document(PageSize.A4, MARGIN, MARGIN, MARGIN, MARGIN);
 			PdfWriter 		docWriter 		= PdfWriter.getInstance(pdfDocument, outputStream);
 
 
@@ -444,12 +450,11 @@ public class PdfcreatorModule extends KrollModule
 
 
 			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
-			Canvas 			viewCanvas 			= new Canvas(viewBitmap);
-			Matrix 			matrix 			= new Matrix();
+			Canvas 			viewCanvas 		= new Canvas(viewBitmap);
 
 			Paint paintAntialias = new Paint();
-			paintAntialias.setAntiAlias(true);
-			paintAntialias.setFilterBitmap(true);
+			// paintAntialias.setAntiAlias(true);
+			// paintAntialias.setFilterBitmap(true);
 
 			Drawable bgDrawable = view.getBackground();
 	        if (bgDrawable != null){
@@ -459,33 +464,28 @@ public class PdfcreatorModule extends KrollModule
 			}
 			view.draw(viewCanvas);
 
-
+			ByteArrayOutputStream stream = new ByteArrayOutputStream(24);
+			viewBitmap.compress(Bitmap.CompressFormat.JPEG, this.quality, stream);
+			
 			pdfDocument.open();
-			float yFactor = 0;
+			float yFactor = viewHeight * scaleFactorWidth;
+			int pageNumber = 1;
+			
 			do{
-				pdfDocument.newPage();
-				Matrix newMatrix = new Matrix();
-				// newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
-				newMatrix.setScale(scaleFactorWidth, scaleFactorWidth);
-
-				// newMatrix.setTranslate(0, yFactor + -1);
-				newMatrix.postTranslate(0, -yFactor /** 1 / this.shrinking*/);
-
-
-				Bitmap imageBitmap = Bitmap.createBitmap(PDF_WIDTH, PDF_HEIGHT, Bitmap.Config.ARGB_8888);
-				Canvas imageCanvas = new Canvas(imageBitmap);
-				imageCanvas.drawBitmap(viewBitmap, newMatrix, paintAntialias);
+				if(pageNumber > 1){
+					pdfDocument.newPage();
+				}
+				pageNumber++;
+				yFactor -= PDF_HEIGHT;
 				
-				ByteArrayOutputStream stream = new ByteArrayOutputStream();
-				imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-				Image companyLogo = Image.getInstance(stream.toByteArray(), true);
-				// companyLogo.scalePercent(100);
-				// companyLogo.scaleToFit(PDF_WIDTH, PDF_HEIGHT);
-				pdfDocument.add(companyLogo); 
+				Image pageImage = Image.getInstance(stream.toByteArray(), true);
+				pageImage.scalePercent(scaleFactorWidth * 100);
+				pageImage.setAbsolutePosition(0f, -yFactor);
+				// pageImage.scaleToFit(PDF_WIDTH, PDF_HEIGHT);
+				pdfDocument.add(pageImage); 
 
-				yFactor += PDF_HEIGHT;
 				Log.i(PROXY_NAME, "yFactor: " + yFactor);
-			}while(yFactor < viewHeight);
+			}while(yFactor > 0);
 
 			pdfDocument.close();
 

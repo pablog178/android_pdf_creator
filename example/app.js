@@ -47,7 +47,8 @@ function generatePDF () {
 
 	pdfcreator.generateiTextPDF({
 		view : webView,
-		fileName : fileName
+		fileName : fileName,
+		quality : 80
 	});
 
 }
