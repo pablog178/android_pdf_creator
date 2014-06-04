@@ -8,6 +8,7 @@
  */
 package com.pablog178.pdfcreator.android;
 
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.io.File;
@@ -22,6 +23,11 @@ import org.appcelerator.titanium.io.TiFileFactory;
 import org.appcelerator.titanium.proxy.TiViewProxy;
 import org.appcelerator.titanium.util.TiConvert;
 import org.appcelerator.titanium.view.TiUIView;
+
+import com.itextpdf.text.Document;
+import com.itextpdf.text.Image;
+import com.itextpdf.text.PageSize;
+import com.itextpdf.text.pdf.PdfWriter;
 
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -114,6 +120,23 @@ public class PdfcreatorModule extends KrollModule
 			});
 		}
 	}
+
+	@Kroll.method(runOnUiThread=true)
+	public void generateiTextPDF(final HashMap args){
+		Log.i(PROXY_NAME, "generatePDF()");
+
+		if(TiApplication.isUIThread()){
+			generateiTextPDFfunction(args);
+		} else {
+			app.getCurrentActivity().runOnUiThread(new Runnable(){
+				public void run(){
+					generateiTextPDFfunction(args);
+				}
+			});
+		}
+	}
+
+	//Private functions
 
 	private void generatePDFfunction(HashMap args){
 		if(args.containsKey("fileName")){
@@ -320,26 +343,6 @@ public class PdfcreatorModule extends KrollModule
 			imageCanvas.drawBitmap(viewBitmap, matrix, null);
 			imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
 
-			// Bitmap shrinkedBitmap = Bitmap.createBitmap((int)(viewWidth * scaleFactorWidth * this.shrinking),
-			// 											(int)(viewHeight * scaleFactorWidth * this.shrinking),
-			// 											Bitmap.Config.ARGB_8888);
-
-			// Canvas shrinkedCanvas = new Canvas(shrinkedBitmap);
-
-			// shrinkedCanvas.drawBitmap(viewBitmap, matrix, null);
-
-			// Matrix newMatrix = new Matrix();
-			// newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
-
-
-			// Canvas pdfCanvas = page.getCanvas();
-			// pdfCanvas.drawBitmap(shrinkedBitmap, newMatrix, null);
-			// pdfCanvas.drawBitmap(viewBitmap, matrix, null);
-
-			// pdfDocument.finishPage(page);
-			// pdfDocument.writeTo(outputStream);
-			// pdfDocument.close();
-
 			sendCompleteEvent();
 
 		} catch (Exception exception){
@@ -378,8 +381,120 @@ public class PdfcreatorModule extends KrollModule
 			Log.e(PROXY_NAME, "Error: " + exception.toString());
 			sendErrorEvent(exception.toString());
 		}
+	}
+
+	private void generateiTextPDFfunction(HashMap args){
+		if(args.containsKey("fileName")){
+			Object fileName = args.get("fileName");
+			if(fileName instanceof String){
+				this.fileName = (String) fileName;
+				Log.i(PROXY_NAME, "fileName: " + this.fileName);
+			}
+		} else return;
+
+		if(args.containsKey("view")){
+			Object viewObject = args.get("view");
+			if(viewObject instanceof TiViewProxy){
+				TiViewProxy viewProxy = (TiViewProxy) viewObject;
+				this.view = viewProxy.getOrCreateView();
+				if(this.view == null){
+					Log.e(PROXY_NAME, "NO VIEW was created!!");
+					return;
+				}
+				Log.i(PROXY_NAME, "view: " + this.view.toString());
+			}
+		} else return;
 
 
+		TiBaseFile 		file 			= TiFileFactory.createTitaniumFile(this.fileName, true);
+		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
+		try {
+
+
+			Resources 		appResources 	= app.getResources();
+			OutputStream 	outputStream 	= file.getOutputStream();
+			final int 		PDF_WIDTH 		= 595; // A4 //612; //Letter 
+			final int 		PDF_HEIGHT 		= 842; // A4 //792; //Letter
+			int 			viewWidth 		= 1600;
+			int 			viewHeight 		= 1;
+			
+			Document 		pdfDocument 	= new Document(PageSize.A4, 10, 10, 10, 10);
+			PdfWriter 		docWriter 		= PdfWriter.getInstance(pdfDocument, outputStream);
+
+
+			WebView 		view 			= (WebView) this.view.getNativeView();
+
+			if (TiApplication.isUIThread()) {
+
+				viewWidth 		= view.capturePicture().getWidth();
+				viewHeight 		= view.capturePicture().getHeight();
+			} else {
+				Log.e(PROXY_NAME, "NO UI THREAD");				
+			}
+
+			view.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
+			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
+
+			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
+			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
+
+			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
+			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
+
+
+			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
+			Canvas 			viewCanvas 			= new Canvas(viewBitmap);
+			Matrix 			matrix 			= new Matrix();
+
+			Paint paintAntialias = new Paint();
+			paintAntialias.setAntiAlias(true);
+			paintAntialias.setFilterBitmap(true);
+
+			Drawable bgDrawable = view.getBackground();
+	        if (bgDrawable != null){
+				bgDrawable.draw(viewCanvas);
+			} else {
+				viewCanvas.drawColor(Color.WHITE);
+			}
+			view.draw(viewCanvas);
+
+
+			pdfDocument.open();
+			float yFactor = 0;
+			do{
+				pdfDocument.newPage();
+				Matrix newMatrix = new Matrix();
+				// newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
+				newMatrix.setScale(scaleFactorWidth, scaleFactorWidth);
+
+				// newMatrix.setTranslate(0, yFactor + -1);
+				newMatrix.postTranslate(0, -yFactor /** 1 / this.shrinking*/);
+
+
+				Bitmap imageBitmap = Bitmap.createBitmap(PDF_WIDTH, PDF_HEIGHT, Bitmap.Config.ARGB_8888);
+				Canvas imageCanvas = new Canvas(imageBitmap);
+				imageCanvas.drawBitmap(viewBitmap, newMatrix, paintAntialias);
+				
+				ByteArrayOutputStream stream = new ByteArrayOutputStream();
+				imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+				Image companyLogo = Image.getInstance(stream.toByteArray(), true);
+				// companyLogo.scalePercent(100);
+				// companyLogo.scaleToFit(PDF_WIDTH, PDF_HEIGHT);
+				pdfDocument.add(companyLogo); 
+
+				yFactor += PDF_HEIGHT;
+				Log.i(PROXY_NAME, "yFactor: " + yFactor);
+			}while(yFactor < viewHeight);
+
+			pdfDocument.close();
+
+			sendCompleteEvent();
+
+		} catch (Exception exception){
+			Log.e(PROXY_NAME, "Error: " + exception.toString());
+			sendErrorEvent(exception.toString());
+		}
 	}
 
 	// method to invoke success callback

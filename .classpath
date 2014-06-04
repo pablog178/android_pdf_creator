@@ -12,6 +12,6 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="lib" path="/Users/pablog178/Library/android-sdk-macosx/platforms/android-19/android.jar"/>
-	<classpathentry kind="lib" path="/Users/pablog178/Library/android-sdk-macosx/add-ons/addon-google_apis-google-19/libs/maps.jar"/>
+	<classpathentry kind="lib" path="/Users/pablog178/Documents/Dev/Titanium/pdfcreator/lib/itextpdf-5.5.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

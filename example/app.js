@@ -22,8 +22,8 @@ win.open();
 
 pdfcreator.addEventListener('complete', completeEvent);
 pdfcreator.addEventListener('error', errorEvent);
-webView.addEventListener('load', generateWebArchive);
-// webView.addEventListener('load', generatePDF);
+// webView.addEventListener('load', generateWebArchive);
+webView.addEventListener('load', generatePDF);
 // webView.addEventListener('load', generateImage);
 
 function generateWebArchive () {
@@ -39,10 +39,15 @@ function generateWebArchive () {
 function generatePDF () {
 	var fileName = 'myPDF.pdf';
 	
-	pdfcreator.generatePDF({
+	// pdfcreator.generatePDF({
+	// 	view : webView,
+	// 	fileName : fileName,
+	// 	shrinking : 1.3
+	// });
+
+	pdfcreator.generateiTextPDF({
 		view : webView,
-		fileName : fileName,
-		shrinking : 1.3
+		fileName : fileName
 	});
 
 }
