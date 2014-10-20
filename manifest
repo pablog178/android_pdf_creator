@@ -5,7 +5,7 @@
 version: 0.1
 apiversion: 2
 description: Titanium Module for generating PDF files using Android SDK
-Requires Android platform > 19
+Requires Android platform > 15
 author: Pablo Guevara
 license: Specify your license
 copyright: Copyright (c) 2014 by Your Company
