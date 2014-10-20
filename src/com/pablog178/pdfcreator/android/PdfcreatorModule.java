@@ -188,6 +188,15 @@ public class PdfcreatorModule extends KrollModule
 
 				viewWidth 		= view.capturePicture().getWidth();
 				viewHeight 		= view.capturePicture().getHeight();
+
+				if(viewWidth <= 0){
+					viewWidth = 1300;
+				}
+
+				if(viewHeight <= 0){
+					viewHeight = 2300;
+				}
+
 			} else {
 				Log.e(PROXY_NAME, "NO UI THREAD");				
 			}
@@ -309,6 +318,15 @@ public class PdfcreatorModule extends KrollModule
 
 				viewWidth 		= view.capturePicture().getWidth();
 				viewHeight 		= view.capturePicture().getHeight();
+
+				if(viewWidth <= 0){
+					viewWidth = 1300;
+				}
+
+				if(viewHeight <= 0){
+					viewHeight = 2300;
+				}
+
 			} else {
 				Log.e(PROXY_NAME, "NO UI THREAD");				
 			}
@@ -434,6 +452,17 @@ public class PdfcreatorModule extends KrollModule
 
 				viewWidth 		= view.capturePicture().getWidth();
 				viewHeight 		= view.capturePicture().getHeight();
+
+
+				if(viewWidth <= 0){
+					viewWidth = 1300;
+				}
+
+				if(viewHeight <= 0){
+					viewHeight = 2300;
+				}
+
+
 			} else {
 				Log.e(PROXY_NAME, "NO UI THREAD");				
 			}
