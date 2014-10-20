@@ -27,6 +27,7 @@ import org.appcelerator.titanium.view.TiUIView;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.PageSize;
+import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.PdfWriter;
 
 import android.content.res.Resources;
@@ -35,9 +36,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
-import android.graphics.pdf.PdfDocument;
-import android.graphics.pdf.PdfDocument.Page;
-import android.graphics.pdf.PdfDocument.PageInfo;
 import android.webkit.WebView;
 import android.view.View;
 import android.graphics.Paint;
@@ -54,8 +52,8 @@ public class PdfcreatorModule extends KrollModule
 	private static TiApplication app;
 	private TiUIView 	view 		= null;
 	private String 		fileName 	= "default_name.pdf";
-	private float 		shrinking 	= 1f;
 	private int 		quality 	= 100;
+	private Rectangle	pageSize	= PageSize.LETTER;
 
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
@@ -74,24 +72,6 @@ public class PdfcreatorModule extends KrollModule
 
 	// Methods
 
-	/**
-	 * Generates a new PDF based on the given view, withe the given fileName on the app directory
-	 */
-	@Kroll.method(runOnUiThread=true)
-	public void generatePDF(final HashMap args){
-		Log.i(PROXY_NAME, "generatePDF()");
-
-		if(TiApplication.isUIThread()){
-			generatePDFfunction(args);
-		} else {
-			app.getCurrentActivity().runOnUiThread(new Runnable(){
-				public void run(){
-					generatePDFfunction(args);
-				}
-			});
-		}
-	}
-
 	@Kroll.method(runOnUiThread=true)
 	public void generateImage(final HashMap args){
 		Log.i(PROXY_NAME, "generateImage()");
@@ -108,22 +88,7 @@ public class PdfcreatorModule extends KrollModule
 	}
 
 	@Kroll.method(runOnUiThread=true)
-	public void generateWebArchive(final HashMap args){
-		Log.i(PROXY_NAME, "generateWebArchive()");
-
-		if(TiApplication.isUIThread()){
-			generateWebArchiveFunction(args);
-		} else {
-			app.getCurrentActivity().runOnUiThread(new Runnable(){
-				public void run(){
-					generateWebArchiveFunction(args);
-				}
-			});
-		}
-	}
-
-	@Kroll.method(runOnUiThread=true)
-	public void generateiTextPDF(final HashMap args){
+	public void generatePDF(final HashMap args){
 		Log.i(PROXY_NAME, "generatePDF()");
 
 		if(TiApplication.isUIThread()){
@@ -138,141 +103,6 @@ public class PdfcreatorModule extends KrollModule
 	}
 
 	//Private functions
-
-	private void generatePDFfunction(HashMap args){
-		if(args.containsKey("fileName")){
-			Object fileName = args.get("fileName");
-			if(fileName instanceof String){
-				this.fileName = (String) fileName;
-				Log.i(PROXY_NAME, "fileName: " + this.fileName);
-			}
-		} else return;
-
-		if(args.containsKey("view")){
-			Object viewObject = args.get("view");
-			if(viewObject instanceof TiViewProxy){
-				TiViewProxy viewProxy = (TiViewProxy) viewObject;
-				this.view = viewProxy.getOrCreateView();
-				if(this.view == null){
-					Log.e(PROXY_NAME, "NO VIEW was created!!");
-					return;
-				}
-				Log.i(PROXY_NAME, "view: " + this.view.toString());
-			}
-		} else return;
-
-		if(args.containsKey("shrinking")){
-			this.shrinking = TiConvert.toFloat(args.get("shrinking"));
-			Log.i(PROXY_NAME, "this.shrinking: " + this.shrinking);
-		}
-
-
-
-		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
-		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
-		try {
-			Resources 		appResources 	= app.getResources();
-			OutputStream 	outputStream 	= file.getOutputStream();
-			final int 		PDF_WIDTH 		= 612;
-			final int 		PDF_HEIGHT 		= 792;
-			int viewWidth = 1600;
-			int viewHeight = 1;
-			
-			PdfDocument 	pdfDocument 	= new PdfDocument();
-			PageInfo 		pageInfo 		= new PageInfo.Builder(PDF_WIDTH, PDF_HEIGHT, 1).create();
-
-
-			WebView 		view 			= (WebView) this.view.getNativeView();
-
-			if (TiApplication.isUIThread()) {
-
-				viewWidth 		= view.capturePicture().getWidth();
-				viewHeight 		= view.capturePicture().getHeight();
-
-				if(viewWidth <= 0){
-					viewWidth = 1300;
-				}
-
-				if(viewHeight <= 0){
-					viewHeight = 2300;
-				}
-
-			} else {
-				Log.e(PROXY_NAME, "NO UI THREAD");				
-			}
-
-			view.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
-			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
-
-			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
-			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
-
-			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
-			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
-
-
-			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
-			float 			density 		= appResources.getDisplayMetrics().density;
-
-			Canvas 			canvas 			= new Canvas(viewBitmap);
-			Matrix 			matrix 			= new Matrix();
-
-			Paint paintAntialias = new Paint();
-			paintAntialias.setAntiAlias(true);
-			paintAntialias.setFilterBitmap(true);
-
-			Drawable bgDrawable = view.getBackground();
-	        if (bgDrawable != null){
-				bgDrawable.draw(canvas);
-			} else {
-				canvas.drawColor(Color.WHITE);
-			}
-			view.draw(canvas);
-
-
-			matrix.setScale(scaleFactorWidth * this.shrinking, scaleFactorWidth * this.shrinking);
-
-			Bitmap shrinkedBitmap = Bitmap.createBitmap((int)(viewWidth * scaleFactorWidth * this.shrinking),
-														(int)(viewHeight * scaleFactorWidth * this.shrinking),
-														Bitmap.Config.ARGB_8888);
-
-			Canvas shrinkedCanvas = new Canvas(shrinkedBitmap);
-
-			shrinkedCanvas.drawBitmap(viewBitmap, matrix, paintAntialias);
-
-
-			float yFactor = 0;
-
-			do{
-				Matrix newMatrix = new Matrix();
-				newMatrix.setScale(1 / this.shrinking, 1 / this.shrinking);
-
-				// newMatrix.setTranslate(0, yFactor + -1);
-				newMatrix.postTranslate(0, -yFactor /** 1 / this.shrinking*/);
-				
-				Page page = pdfDocument.startPage(pageInfo);
-				
-				Canvas pdfCanvas = page.getCanvas();
-				pdfCanvas.drawBitmap(shrinkedBitmap, newMatrix, paintAntialias);
-
-				pdfDocument.finishPage(page);
-
-				yFactor += PDF_HEIGHT;
-				Log.i(PROXY_NAME, "yFactor: " + yFactor);
-			}while(yFactor < viewHeight * scaleFactorWidth);
-
-
-			pdfDocument.writeTo(outputStream);
-			pdfDocument.close();
-
-			sendCompleteEvent();
-
-		} catch (Exception exception){
-			Log.e(PROXY_NAME, "Error: " + exception.toString());
-			sendErrorEvent(exception.toString());
-		}
-	}
 
 	private void generateImageFunction(HashMap args){
 		if(args.containsKey("fileName")){
@@ -296,12 +126,6 @@ public class PdfcreatorModule extends KrollModule
 			}
 		} else return;
 
-		if(args.containsKey("shrinking")){
-			this.shrinking = TiConvert.toFloat(args.get("shrinking"));
-		}
-
-
-
 		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
 		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
 		try {
@@ -354,7 +178,6 @@ public class PdfcreatorModule extends KrollModule
 			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
 			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
 
-			// matrix.setScale(scaleFactorWidth * this.shrinking, scaleFactorWidth * this.shrinking);
 			matrix.setScale(scaleFactorWidth, scaleFactorWidth);
 
 			Bitmap imageBitmap = Bitmap.createBitmap(PDF_WIDTH, PDF_HEIGHT, Bitmap.Config.ARGB_8888);
@@ -428,6 +251,19 @@ public class PdfcreatorModule extends KrollModule
 			this.quality = TiConvert.toInt(args.get("quality"));
 		}
 
+		if(args.containsKey("pageSize")){
+			Object pageSize = args.get("pageSize");
+			if(pageSize instanceof String){
+				if(pageSize.equals("letter")){
+					this.pageSize = PageSize.LETTER;
+				} else if(pageSize.equals("A4")){
+					this.pageSize = PageSize.A4;
+				} else {
+					this.pageSize = PageSize.LETTER;
+				}
+			}
+		}
+
 
 		TiBaseFile 		file 			= TiFileFactory.createTitaniumFile(this.fileName, true);
 		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
@@ -437,13 +273,18 @@ public class PdfcreatorModule extends KrollModule
 			Resources 		appResources 	= app.getResources();
 			OutputStream 	outputStream 	= file.getOutputStream();
 			final int 		MARGIN 			= 0;
-			final int 		PDF_WIDTH 		= 595 - MARGIN * 2; // A4 //612; //Letter 
-			final int 		PDF_HEIGHT 		= 842 - MARGIN * 2; // A4 //792; //Letter
-			int 			viewWidth 		= 1600;
-			int 			viewHeight 		= 1;
+			final float		PDF_WIDTH 		= this.pageSize.getWidth() - MARGIN * 2; // A4: 595 //Letter: 612
+			final float		PDF_HEIGHT 		= this.pageSize.getHeight() - MARGIN * 2; // A4: 842 //Letter: 792
+			final int		DEFAULT_VIEW_WIDTH = 980;
+			final int		DEFAULT_VIEW_HEIGHT = 1384;
+			int 			viewWidth 		= DEFAULT_VIEW_WIDTH;
+			int 			viewHeight 		= DEFAULT_VIEW_HEIGHT;
 			
-			Document 		pdfDocument 	= new Document(PageSize.A4, MARGIN, MARGIN, MARGIN, MARGIN);
+			Document 		pdfDocument 	= new Document(this.pageSize, MARGIN, MARGIN, MARGIN, MARGIN);
 			PdfWriter 		docWriter 		= PdfWriter.getInstance(pdfDocument, outputStream);
+
+			Log.i(PROXY_NAME, "PDF_WIDTH: " + PDF_WIDTH);
+			Log.i(PROXY_NAME, "PDF_HEIGHT: " + PDF_HEIGHT);
 
 
 			WebView 		view 			= (WebView) this.view.getNativeView();
@@ -455,24 +296,26 @@ public class PdfcreatorModule extends KrollModule
 
 
 				if(viewWidth <= 0){
-					viewWidth = 1300;
+					viewWidth = DEFAULT_VIEW_WIDTH;
 				}
 
 				if(viewHeight <= 0){
-					viewHeight = 2300;
+					viewHeight = DEFAULT_VIEW_HEIGHT;
 				}
 
 
 			} else {
 				Log.e(PROXY_NAME, "NO UI THREAD");				
+				viewWidth = DEFAULT_VIEW_WIDTH;
+				viewHeight = DEFAULT_VIEW_HEIGHT;
 			}
 
 			view.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
 			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
 			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
 
-			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
-			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
+			float scaleFactorWidth 	= 1 / ((float)viewWidth  / PDF_WIDTH);
+			float scaleFactorHeight = 1 / ((float)viewHeight / PDF_HEIGHT);
 
 			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
 			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
@@ -493,8 +336,8 @@ public class PdfcreatorModule extends KrollModule
 			}
 			view.draw(viewCanvas);
 
-			ByteArrayOutputStream stream = new ByteArrayOutputStream(24);
-			viewBitmap.compress(Bitmap.CompressFormat.JPEG, this.quality, stream);
+			ByteArrayOutputStream stream = new ByteArrayOutputStream(32);
+			viewBitmap.compress(Bitmap.CompressFormat.PNG, this.quality, stream);
 			
 			pdfDocument.open();
 			float yFactor = viewHeight * scaleFactorWidth;
@@ -510,7 +353,6 @@ public class PdfcreatorModule extends KrollModule
 				Image pageImage = Image.getInstance(stream.toByteArray(), true);
 				pageImage.scalePercent(scaleFactorWidth * 100);
 				pageImage.setAbsolutePosition(0f, -yFactor);
-				// pageImage.scaleToFit(PDF_WIDTH, PDF_HEIGHT);
 				pdfDocument.add(pageImage); 
 
 				Log.i(PROXY_NAME, "yFactor: " + yFactor);
