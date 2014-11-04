@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.io.File;
+import java.util.Date;
 
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollModule;
@@ -324,7 +325,7 @@ public class PdfcreatorModule extends KrollModule
 			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
 			Canvas 			viewCanvas 		= new Canvas(viewBitmap);
 
-			Paint paintAntialias = new Paint();
+			// Paint paintAntialias = new Paint();
 			// paintAntialias.setAntiAlias(true);
 			// paintAntialias.setFilterBitmap(true);
 
@@ -336,8 +337,9 @@ public class PdfcreatorModule extends KrollModule
 			}
 			view.draw(viewCanvas);
 
-			ByteArrayOutputStream stream = new ByteArrayOutputStream(32);
-			viewBitmap.compress(Bitmap.CompressFormat.PNG, this.quality, stream);
+			TiBaseFile pdfImg = createTempFile();
+
+			viewBitmap.compress(Bitmap.CompressFormat.JPEG, this.quality, pdfImg.getOutputStream());
 			
 			pdfDocument.open();
 			float yFactor = viewHeight * scaleFactorWidth;
@@ -350,7 +352,7 @@ public class PdfcreatorModule extends KrollModule
 				pageNumber++;
 				yFactor -= PDF_HEIGHT;
 				
-				Image pageImage = Image.getInstance(stream.toByteArray(), true);
+				Image pageImage = Image.getInstance(pdfImg.nativePath(), true);
 				pageImage.scalePercent(scaleFactorWidth * 100);
 				pageImage.setAbsolutePosition(0f, -yFactor);
 				pdfDocument.add(pageImage); 
@@ -384,6 +386,14 @@ public class PdfcreatorModule extends KrollModule
 	        props.put("message", message);
 	        this.fireEvent("error", props);
 	    }
+	}
+
+	private TiBaseFile createTempFile(){
+		String fileName = Long.toString( new Date().getTime() ) + ".png";
+		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
+		file.getNativeFile().deleteOnExit();
+
+		return file;
 	}
 }
 
