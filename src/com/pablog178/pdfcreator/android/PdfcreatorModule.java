@@ -9,10 +9,14 @@
 package com.pablog178.pdfcreator.android;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.util.Date;
+
+import org.apache.commons.io.IOUtils;
 
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollModule;
@@ -339,7 +343,16 @@ public class PdfcreatorModule extends KrollModule
 
 			TiBaseFile pdfImg = createTempFile();
 
+			// ByteArrayOutputStream stream = new ByteArrayOutputStream(32);
+			// viewBitmap.compress(Bitmap.CompressFormat.JPEG, this.quality, stream);
 			viewBitmap.compress(Bitmap.CompressFormat.JPEG, this.quality, pdfImg.getOutputStream());
+			
+			FileInputStream pdfImgInputStream = new FileInputStream(pdfImg.getNativeFile());
+			byte[] pdfImgBytes = IOUtils.toByteArray(pdfImgInputStream);
+			pdfImgInputStream.close();
+
+			// ByteBuffer		buffer			= ByteBuffer.allocate(viewBitmap.getByteCount());
+			// viewBitmap.copyPixelsToBuffer(buffer);
 			
 			pdfDocument.open();
 			float yFactor = viewHeight * scaleFactorWidth;
@@ -352,7 +365,8 @@ public class PdfcreatorModule extends KrollModule
 				pageNumber++;
 				yFactor -= PDF_HEIGHT;
 				
-				Image pageImage = Image.getInstance(pdfImg.nativePath(), true);
+				Image pageImage = Image.getInstance(pdfImgBytes, true);
+				// Image pageImage = Image.getInstance(buffer.array());
 				pageImage.scalePercent(scaleFactorWidth * 100);
 				pageImage.setAbsolutePosition(0f, -yFactor);
 				pdfDocument.add(pageImage); 
