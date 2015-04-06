@@ -12,6 +12,12 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="lib" path="/Users/pablog178/Library/android-sdk-macosx/platforms/android-19/android.jar"/>
-	<classpathentry kind="lib" path="/Users/pablog178/Documents/Dev/Titanium/pdfcreator/lib/itextpdf-5.5.1.jar"/>
+	<classpathentry kind="lib" path="libs/sc-light-jdk15on-1.47.0.2.jar"/>
+	<classpathentry kind="lib" path="libs/scpkix-jdk15on-1.47.0.2.jar"/>
+	<classpathentry kind="lib" path="libs/scprov-jdk15on-1.47.0.2.jar"/>
+	<classpathentry kind="lib" path="lib/commons-io-2.4.jar"/>
+	<classpathentry kind="lib" path="lib/core-renderer-minimal.jar"/>
+	<classpathentry kind="lib" path="lib/itextg-5.5.4.jar"/>
+	<classpathentry kind="lib" path="lib/xmlworker-5.5.4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

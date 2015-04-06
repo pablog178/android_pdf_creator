@@ -1,0 +1,19 @@
+#
+# this is your module manifest and used by Titanium
+# during compilation, packaging, distribution, etc.
+#
+version: 0.1
+apiversion: 2
+description: Titanium Module for generating PDF files using Android SDK
+Requires Android platform > 15
+author: Pablo Guevara
+license: Specify your license
+copyright: Copyright (c) 2014 by Your Company
+
+
+# these should not be edited
+name: pdfcreator
+moduleid: com.pablog178.pdfcreator.android
+guid: 60f76f25-d440-491d-ba0a-b8d4a91b8d9b
+platform: android
+minsdk: 3.2.3.GA

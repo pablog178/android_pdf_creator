@@ -8,14 +8,16 @@
  */
 package com.pablog178.pdfcreator.android;
 
-import java.io.ByteArrayOutputStream;
+
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.Date;
-
+import java.io.FileNotFoundException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import org.apache.commons.io.IOUtils;
 
 import org.appcelerator.kroll.KrollDict;
@@ -34,7 +36,8 @@ import com.itextpdf.text.Image;
 import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.PdfWriter;
-
+import com.itextpdf.tool.xml.XMLWorkerHelper;
+import com.itextpdf.text.DocumentException;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -43,7 +46,6 @@ import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
 import android.webkit.WebView;
 import android.view.View;
-import android.graphics.Paint;
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
 public class PdfcreatorModule extends KrollModule
@@ -56,7 +58,7 @@ public class PdfcreatorModule extends KrollModule
 	// Private members
 	private static TiApplication app;
 	private TiUIView 	view 		= null;
-	private String 		fileName 	= "default_name.pdf";
+	private String 	fileName 	= "default_name.pdf";
 	private int 		quality 	= 100;
 	private Rectangle	pageSize	= PageSize.LETTER;
 
@@ -106,6 +108,212 @@ public class PdfcreatorModule extends KrollModule
 			});
 		}
 	}
+
+	// Using XMLWorkerHelper
+	@Kroll.method(runOnUiThread=true)
+	public void generatePDFWithHTML (final HashMap args) {
+		Log.i(PROXY_NAME, "generatePDFWithHTML()");
+
+		PdfWriter pdfWriter = null;
+		String html = null;
+		
+		
+		if(args.containsKey("filename")){
+			Object fileName = args.get("filename");
+			if(fileName instanceof String){
+				this.fileName = (String) fileName;
+				Log.i(PROXY_NAME, "fileName: " + this.fileName);
+			}
+		} else return;
+
+		if (args.containsKey("html")) {
+			if (args.get("html") instanceof String) {
+				html = (String) args.get("html");
+				Log.i(PROXY_NAME, "html: " + html);
+			}
+		} else return;
+
+
+		//create a new document
+		Document document = new Document();
+		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
+		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
+
+		try {
+			
+			//get Instance of the PDFWriter
+			pdfWriter = PdfWriter.getInstance(document, file.getOutputStream());
+			
+			//document header attributes
+			document.addAuthor("betterThanZero");
+			document.addCreationDate();
+			document.addProducer();
+			document.addCreator("MySampleCode.com");
+			document.addTitle("Demo for iText XMLWorker");
+			document.setPageSize(PageSize.LETTER);
+			
+			//open document
+			document.open();
+			
+			//To convert a HTML file from the filesystem
+			//String File_To_Convert = "docs/SamplePDF.html";
+			//FileInputStream fis = new FileInputStream(File_To_Convert);
+			
+			InputStream htmlIS = new ByteArrayInputStream(html.getBytes("UTF-8"));
+			
+			//get the XMLWorkerHelper Instance
+			XMLWorkerHelper worker = XMLWorkerHelper.getInstance();
+			//convert to PDF
+			worker.parseXHtml(pdfWriter, document, htmlIS);
+			
+			//close the document
+			document.close();
+			//close the writer
+			pdfWriter.close();
+
+			sendCompleteEvent();
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		} catch (IOException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		} catch (DocumentException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		}  catch (Exception e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		}
+	}
+	
+	// Using Deprecated HTML Worker
+	/*@Kroll.method(runOnUiThread=true)
+	public void generatePDFWithHTML (final HashMap args) {
+		Log.i(PROXY_NAME, "generatePDFWithHTML()");
+
+		PdfWriter pdfWriter = null;
+		String html = null;
+		
+		
+		if(args.containsKey("filename")){
+			Object fileName = args.get("filename");
+			if(fileName instanceof String){
+				this.fileName = (String) fileName;
+				Log.i(PROXY_NAME, "fileName: " + this.fileName);
+			}
+		} else return;
+
+		if (args.containsKey("html")) {
+			if (args.get("html") instanceof String) {
+				html = (String) args.get("html");
+				Log.i(PROXY_NAME, "html: " + html);
+			}
+		} else return;
+
+
+		//create a new document
+		Document document = new Document();
+		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
+		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
+
+		try {
+			
+			//get Instance of the PDFWriter
+			pdfWriter = PdfWriter.getInstance(document, file.getOutputStream());
+			
+			//document header attributes
+			document.addAuthor("betterThanZero");
+			document.addCreationDate();
+			document.addProducer();
+			document.addCreator("MySampleCode.com");
+			document.addTitle("Demo for iText XMLWorker");
+			document.setPageSize(PageSize.LETTER);
+			
+			//open document
+			document.open();
+			
+			//To convert a HTML file from the filesystem
+			//String File_To_Convert = "docs/SamplePDF.html";
+			//FileInputStream fis = new FileInputStream(File_To_Convert);
+			
+			HTMLWorker htmlWorker = new HTMLWorker(document);
+			//convert to PDF
+			htmlWorker.parse(new StringReader(html));
+			
+			//close the document
+			document.close();
+			//close the writer
+			pdfWriter.close();
+
+			sendCompleteEvent();
+
+		}   
+		
+		catch (FileNotFoundException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		} catch (IOException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		} catch (DocumentException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		}  
+	}*/
+
+	// Using Flying Saucer
+	/*@Kroll.method(runOnUiThread=true)
+	public void generatePDFWithHTML (final HashMap args) {
+		Log.i(PROXY_NAME, "generatePDFWithHTML()");
+
+		PdfWriter pdfWriter = null;
+		String html = null;
+		
+		
+		if(args.containsKey("filename")){
+			Object fileName = args.get("filename");
+			if(fileName instanceof String){
+				this.fileName = (String) fileName;
+				Log.i(PROXY_NAME, "fileName: " + this.fileName);
+			}
+		} else return;
+
+		if (args.containsKey("html")) {
+			if (args.get("html") instanceof String) {
+				html = (String) args.get("html");
+				Log.i(PROXY_NAME, "html: " + html);
+			}
+		} else return;
+
+
+		//create a new document
+		Document document = new Document();
+		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
+		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
+
+		try {
+			
+			ITextRenderer renderer = new ITextRenderer();
+			renderer.setDocumentFromString(html);
+			renderer.layout();
+			renderer.createPDF(file.getOutputStream());
+
+			sendCompleteEvent();
+		}   
+		
+		catch (FileNotFoundException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		} catch (IOException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		} catch (com.lowagie.text.DocumentException e) {
+			e.printStackTrace();
+			sendErrorEvent(e.toString());
+		}
+	}*/
 
 	//Private functions
 
@@ -170,7 +378,7 @@ public class PdfcreatorModule extends KrollModule
 			Matrix 			matrix 			= new Matrix();
 
 			Drawable bgDrawable = view.getBackground();
-	        if (bgDrawable != null){
+			if (bgDrawable != null){
 				bgDrawable.draw(canvas);
 			} else {
 				canvas.drawColor(Color.WHITE);
@@ -334,7 +542,7 @@ public class PdfcreatorModule extends KrollModule
 			// paintAntialias.setFilterBitmap(true);
 
 			Drawable bgDrawable = view.getBackground();
-	        if (bgDrawable != null){
+			if (bgDrawable != null){
 				bgDrawable.draw(viewCanvas);
 			} else {
 				viewCanvas.drawColor(Color.WHITE);
@@ -343,17 +551,12 @@ public class PdfcreatorModule extends KrollModule
 
 			TiBaseFile pdfImg = createTempFile();
 
-			// ByteArrayOutputStream stream = new ByteArrayOutputStream(32);
-			// viewBitmap.compress(Bitmap.CompressFormat.JPEG, this.quality, stream);
 			viewBitmap.compress(Bitmap.CompressFormat.JPEG, this.quality, pdfImg.getOutputStream());
 			
 			FileInputStream pdfImgInputStream = new FileInputStream(pdfImg.getNativeFile());
 			byte[] pdfImgBytes = IOUtils.toByteArray(pdfImgInputStream);
 			pdfImgInputStream.close();
 
-			// ByteBuffer		buffer			= ByteBuffer.allocate(viewBitmap.getByteCount());
-			// viewBitmap.copyPixelsToBuffer(buffer);
-			
 			pdfDocument.open();
 			float yFactor = viewHeight * scaleFactorWidth;
 			int pageNumber = 1;
@@ -386,20 +589,20 @@ public class PdfcreatorModule extends KrollModule
 
 	// method to invoke success callback
 	private void sendCompleteEvent() {
-	    if (this.hasListeners("complete")) {
-	        KrollDict props = new KrollDict();
-	        props.put("fileName", this.fileName);
-	        this.fireEvent("complete", props);
-	    }
+		if (this.hasListeners("complete")) {
+			KrollDict props = new KrollDict();
+			props.put("fileName", this.fileName);
+			this.fireEvent("complete", props);
+		}
 	}
 
 	// method to invoke error callback
 	private void sendErrorEvent(String message) {
-	    if (this.hasListeners("error")) {
-	        KrollDict props = new KrollDict();
-	        props.put("message", message);
-	        this.fireEvent("error", props);
-	    }
+		if (this.hasListeners("error")) {
+			KrollDict props = new KrollDict();
+			props.put("message", message);
+			this.fireEvent("error", props);
+		}
 	}
 
 	private TiBaseFile createTempFile(){
