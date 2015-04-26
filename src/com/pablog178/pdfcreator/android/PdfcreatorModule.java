@@ -17,6 +17,7 @@ import java.io.File;
 import java.util.Date;
 import java.io.FileNotFoundException;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.apache.commons.io.IOUtils;
 
@@ -47,6 +48,15 @@ import android.graphics.drawable.Drawable;
 import android.webkit.WebView;
 import android.view.View;
 
+import android.graphics.pdf.PdfDocument;
+import android.graphics.pdf.PdfDocument.Page;
+import android.graphics.pdf.PdfDocument.PageInfo;
+import android.print.pdf.PrintedPdfDocument;
+import android.print.PrintAttributes;
+
+import org.w3c.tidy.Tidy;
+
+
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
 public class PdfcreatorModule extends KrollModule
 {
@@ -61,6 +71,7 @@ public class PdfcreatorModule extends KrollModule
 	private String 	fileName 	= "default_name.pdf";
 	private int 		quality 	= 100;
 	private Rectangle	pageSize	= PageSize.LETTER;
+	private float 	shrinking = 1f;
 
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
@@ -94,18 +105,80 @@ public class PdfcreatorModule extends KrollModule
 		}
 	}
 
+	// Generates PDF with itext
 	@Kroll.method(runOnUiThread=true)
 	public void generatePDF(final HashMap args){
 		Log.i(PROXY_NAME, "generatePDF()");
 
 		if(TiApplication.isUIThread()){
-			generateiTextPDFfunction(args);
+			// generateiTextPDFfunction(args);
+			generatePDFfunction(args);
 		} else {
 			app.getCurrentActivity().runOnUiThread(new Runnable(){
 				public void run(){
-					generateiTextPDFfunction(args);
+					// generateiTextPDFfunction(args);
+					generatePDFfunction(args);
 				}
 			});
+		}
+	}
+
+	// Generates PDF with Android SDK
+	private void generatePDFfunction(HashMap args){
+		if(args.containsKey("fileName")){
+			Object fileName = args.get("fileName");
+			if(fileName instanceof String){
+				this.fileName = (String) fileName;
+				Log.i(PROXY_NAME, "fileName: " + this.fileName);
+			}
+		} else return;
+
+		if(args.containsKey("view")){
+			Object viewObject = args.get("view");
+			if(viewObject instanceof TiViewProxy){
+				TiViewProxy viewProxy = (TiViewProxy) viewObject;
+				this.view = viewProxy.getOrCreateView();
+				if(this.view == null){
+					Log.e(PROXY_NAME, "NO VIEW was created!!");
+					return;
+				}
+				Log.i(PROXY_NAME, "view: " + this.view.toString());
+			}
+		} else return;
+
+		try {
+
+			// Variables
+			TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
+			OutputStream outputStream = file.getOutputStream();
+			WebView view = (WebView) this.view.getNativeView();
+
+			Log.i(PROXY_NAME, "context: " + view.getContext().toString());
+			PrintedPdfDocument pdfDocument = new PrintedPdfDocument( 
+				view.getContext(), 
+				new PrintAttributes.Builder().
+					setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME).
+					setMediaSize(PrintAttributes.MediaSize.NA_LETTER.asLandscape()).
+					setResolution(new PrintAttributes.Resolution("300dpi", "label", 300, 300)).
+					setMinMargins(PrintAttributes.Margins.NO_MARGINS).
+					build()
+			);
+
+
+			Page page = pdfDocument.startPage(0);
+
+			view.draw(page.getCanvas());
+
+			pdfDocument.finishPage(page);
+			
+			pdfDocument.writeTo(outputStream);
+			pdfDocument.close();
+
+			sendCompleteEvent();
+
+		} catch (Exception exception){
+			Log.e(PROXY_NAME, "Error: " + exception.toString(), exception);
+			sendErrorEvent(exception.toString());
 		}
 	}
 
@@ -141,6 +214,21 @@ public class PdfcreatorModule extends KrollModule
 
 		try {
 			
+			InputStream htmlIS = new ByteArrayInputStream(html.getBytes("UTF-8"));
+			OutputStream xhtmlOS = new ByteArrayOutputStream();
+			Tidy tidy = new Tidy();
+			
+			// tidy.setXHTML(true);
+			tidy.setXmlOut(true);
+			tidy.parse(htmlIS, xhtmlOS);
+
+
+
+			String xhtml = xhtmlOS.toString();
+			Log.i(PROXY_NAME, "style: " + xhtml.substring(xhtml.indexOf("style")));
+
+			htmlIS.close();
+			xhtmlOS.close();
 			//get Instance of the PDFWriter
 			pdfWriter = PdfWriter.getInstance(document, file.getOutputStream());
 			
@@ -159,12 +247,12 @@ public class PdfcreatorModule extends KrollModule
 			//String File_To_Convert = "docs/SamplePDF.html";
 			//FileInputStream fis = new FileInputStream(File_To_Convert);
 			
-			InputStream htmlIS = new ByteArrayInputStream(html.getBytes("UTF-8"));
 			
 			//get the XMLWorkerHelper Instance
 			XMLWorkerHelper worker = XMLWorkerHelper.getInstance();
 			//convert to PDF
-			worker.parseXHtml(pdfWriter, document, htmlIS);
+			worker.parseXHtml(pdfWriter, document, new ByteArrayInputStream(xhtml.getBytes("UTF-8"))); //Load xhtml
+			// worker.parseXHtml(pdfWriter, document, new ByteArrayInputStream(html.getBytes("UTF-8")); Load only HTML
 			
 			//close the document
 			document.close();
@@ -534,8 +622,8 @@ public class PdfcreatorModule extends KrollModule
 			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
 
 
-			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
-			Canvas 			viewCanvas 		= new Canvas(viewBitmap);
+			Bitmap viewBitmap = Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
+			Canvas viewCanvas = new Canvas(viewBitmap);
 
 			// Paint paintAntialias = new Paint();
 			// paintAntialias.setAntiAlias(true);
