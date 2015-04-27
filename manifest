@@ -2,13 +2,13 @@
 # this is your module manifest and used by Titanium
 # during compilation, packaging, distribution, etc.
 #
-version: 0.1
+version: 1.0
 apiversion: 2
-description: Titanium Module for generating PDF files using Android SDK
-Requires Android platform > 15
+description: Titanium Module for generating PDF files using iTextg
+Requires Android platform >= 16
 author: Pablo Guevara
-license: Specify your license
-copyright: Copyright (c) 2014 by Your Company
+license: GPL
+copyright: Copyright (c) 2015 by Pablo Guevara
 
 
 # these should not be edited

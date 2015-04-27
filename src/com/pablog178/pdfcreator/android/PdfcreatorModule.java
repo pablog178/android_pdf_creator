@@ -9,18 +9,14 @@
 package com.pablog178.pdfcreator.android;
 
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
-import java.io.File;
-import java.util.Date;
-import java.io.FileNotFoundException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import org.apache.commons.io.IOUtils;
 
+import org.apache.commons.io.IOUtils;
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.annotations.Kroll;
@@ -31,30 +27,20 @@ import org.appcelerator.titanium.io.TiFileFactory;
 import org.appcelerator.titanium.proxy.TiViewProxy;
 import org.appcelerator.titanium.util.TiConvert;
 import org.appcelerator.titanium.view.TiUIView;
+import org.w3c.tidy.Tidy;
+
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.view.View;
+import android.webkit.WebView;
 
 import com.itextpdf.text.Document;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.PageSize;
-import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.tool.xml.XMLWorkerHelper;
-import com.itextpdf.text.DocumentException;
-import android.content.res.Resources;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Matrix;
-import android.graphics.drawable.Drawable;
-import android.webkit.WebView;
-import android.view.View;
-
-import android.graphics.pdf.PdfDocument;
-import android.graphics.pdf.PdfDocument.Page;
-import android.graphics.pdf.PdfDocument.PageInfo;
-import android.print.pdf.PrintedPdfDocument;
-import android.print.PrintAttributes;
-
-import org.w3c.tidy.Tidy;
 
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
@@ -67,15 +53,9 @@ public class PdfcreatorModule extends KrollModule
 
 	// Private members
 	private static TiApplication app;
-	private TiUIView 	view 		= null;
-	private String 	fileName 	= "default_name.pdf";
-	private int 		quality 	= 100;
-	private Rectangle	pageSize	= PageSize.LETTER;
-	private float 	shrinking = 1f;
-
+	
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
-	
 	public PdfcreatorModule(){
 		super();
 	}
@@ -90,129 +70,42 @@ public class PdfcreatorModule extends KrollModule
 
 	// Methods
 
-	@Kroll.method(runOnUiThread=true)
-	public void generateImage(final HashMap args){
-		Log.i(PROXY_NAME, "generateImage()");
-
-		if(TiApplication.isUIThread()){
-			generateImageFunction(args);
-		} else {
-			app.getCurrentActivity().runOnUiThread(new Runnable(){
-				public void run(){
-					generateImageFunction(args);
-				}
-			});
-		}
-	}
-
-	// Generates PDF with itext
-	@Kroll.method(runOnUiThread=true)
-	public void generatePDF(final HashMap args){
-		Log.i(PROXY_NAME, "generatePDF()");
-
-		if(TiApplication.isUIThread()){
-			// generateiTextPDFfunction(args);
-			generatePDFfunction(args);
-		} else {
-			app.getCurrentActivity().runOnUiThread(new Runnable(){
-				public void run(){
-					// generateiTextPDFfunction(args);
-					generatePDFfunction(args);
-				}
-			});
-		}
-	}
-
-	// Generates PDF with Android SDK
-	private void generatePDFfunction(HashMap args){
-		if(args.containsKey("fileName")){
-			Object fileName = args.get("fileName");
-			if(fileName instanceof String){
-				this.fileName = (String) fileName;
-				Log.i(PROXY_NAME, "fileName: " + this.fileName);
-			}
-		} else return;
-
-		if(args.containsKey("view")){
-			Object viewObject = args.get("view");
-			if(viewObject instanceof TiViewProxy){
-				TiViewProxy viewProxy = (TiViewProxy) viewObject;
-				this.view = viewProxy.getOrCreateView();
-				if(this.view == null){
-					Log.e(PROXY_NAME, "NO VIEW was created!!");
-					return;
-				}
-				Log.i(PROXY_NAME, "view: " + this.view.toString());
-			}
-		} else return;
-
-		try {
-
-			// Variables
-			TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
-			OutputStream outputStream = file.getOutputStream();
-			WebView view = (WebView) this.view.getNativeView();
-
-			Log.i(PROXY_NAME, "context: " + view.getContext().toString());
-			PrintedPdfDocument pdfDocument = new PrintedPdfDocument( 
-				view.getContext(), 
-				new PrintAttributes.Builder().
-					setColorMode(PrintAttributes.COLOR_MODE_MONOCHROME).
-					setMediaSize(PrintAttributes.MediaSize.NA_LETTER.asLandscape()).
-					setResolution(new PrintAttributes.Resolution("300dpi", "label", 300, 300)).
-					setMinMargins(PrintAttributes.Margins.NO_MARGINS).
-					build()
-			);
-
-
-			Page page = pdfDocument.startPage(0);
-
-			view.draw(page.getCanvas());
-
-			pdfDocument.finishPage(page);
-			
-			pdfDocument.writeTo(outputStream);
-			pdfDocument.close();
-
-			sendCompleteEvent();
-
-		} catch (Exception exception){
-			Log.e(PROXY_NAME, "Error: " + exception.toString(), exception);
-			sendErrorEvent(exception.toString());
-		}
-	}
-
-	// Using XMLWorkerHelper
+	/**
+	 * @method generatePDFWithHTML
+	 * Generates a PDF with the given file name, based on a HTML file
+	 * @param {String} filename Name of the PDF file
+	 * @param {String} html String with the HTML
+	 * @param {String} [author] Author for metadata
+	 * Fires a "complete" event when the PDF is generated
+	 * Fires a "error" event when a error is presented
+	 */
 	@Kroll.method(runOnUiThread=true)
 	public void generatePDFWithHTML (final HashMap args) {
-		Log.i(PROXY_NAME, "generatePDFWithHTML()");
+		Log.d(PROXY_NAME, "generatePDFWithHTML()");
 
-		PdfWriter pdfWriter = null;
-		String html = null;
-		
-		
-		if(args.containsKey("filename")){
-			Object fileName = args.get("filename");
-			if(fileName instanceof String){
-				this.fileName = (String) fileName;
-				Log.i(PROXY_NAME, "fileName: " + this.fileName);
-			}
-		} else return;
-
-		if (args.containsKey("html")) {
-			if (args.get("html") instanceof String) {
-				html = (String) args.get("html");
-				Log.i(PROXY_NAME, "html: " + html);
-			}
-		} else return;
-
-
-		//create a new document
-		Document document = new Document();
-		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
-		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
+		String html = "";
+		String author = "";
+		String filename = "";
 
 		try {
+			if(args.containsKey("filename")){
+				filename = (String) args.get("filename");
+				Log.d(PROXY_NAME, "filename: " + filename);
+			} else return;
+
+			if (args.containsKey("html")) {
+				html = (String) args.get("html");
+				Log.d(PROXY_NAME, "html: " + html);
+			} else return;
+
+			if(args.containsKey("author")){
+				author = (String) args.get("author");
+				Log.d(PROXY_NAME, "author: " + author);
+			}
+
+			//create a new document
+			Document document = new Document();
+			TiBaseFile file = TiFileFactory.createTitaniumFile(filename, true);
 			
 			InputStream htmlIS = new ByteArrayInputStream(html.getBytes("UTF-8"));
 			OutputStream xhtmlOS = new ByteArrayOutputStream();
@@ -222,378 +115,115 @@ public class PdfcreatorModule extends KrollModule
 			tidy.setXmlOut(true);
 			tidy.parse(htmlIS, xhtmlOS);
 
-
-
 			String xhtml = xhtmlOS.toString();
-			Log.i(PROXY_NAME, "style: " + xhtml.substring(xhtml.indexOf("style")));
-
+			
 			htmlIS.close();
 			xhtmlOS.close();
+			
+
 			//get Instance of the PDFWriter
-			pdfWriter = PdfWriter.getInstance(document, file.getOutputStream());
+			PdfWriter pdfWriter = PdfWriter.getInstance(document, file.getOutputStream());
 			
 			//document header attributes
-			document.addAuthor("betterThanZero");
+			document.addAuthor(author);
 			document.addCreationDate();
-			document.addProducer();
-			document.addCreator("MySampleCode.com");
-			document.addTitle("Demo for iText XMLWorker");
 			document.setPageSize(PageSize.LETTER);
 			
 			//open document
 			document.open();
-			
-			//To convert a HTML file from the filesystem
-			//String File_To_Convert = "docs/SamplePDF.html";
-			//FileInputStream fis = new FileInputStream(File_To_Convert);
-			
 			
 			//get the XMLWorkerHelper Instance
 			XMLWorkerHelper worker = XMLWorkerHelper.getInstance();
 			//convert to PDF
 			worker.parseXHtml(pdfWriter, document, new ByteArrayInputStream(xhtml.getBytes("UTF-8"))); //Load xhtml
-			// worker.parseXHtml(pdfWriter, document, new ByteArrayInputStream(html.getBytes("UTF-8")); Load only HTML
 			
 			//close the document
 			document.close();
 			//close the writer
 			pdfWriter.close();
 
-			sendCompleteEvent();
+			sendCompleteEvent(filename);
 
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
-		} catch (IOException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
-		} catch (DocumentException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
 		}  catch (Exception e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
+			sendErrorEvent(e);
+		}
+	}
+
+	/**
+	 * @method generatePDFwithWebView
+	 * Generates a PDF with the given webview, obtaining all of its content as an image
+	 * @param {String} filename Name of the PDF file
+	 * @param {TiUIView} webview Web View to obtain the html from
+	 * @param {Integer} [quality] Quality of the image to generate, from 0 to 100
+	 * Fires a "complete" event when the PDF is generated
+	 * Fires a "error" event when a error is presented
+	 */
+	@Kroll.method(runOnUiThread=true)
+	public void generatePDFwithWebView(final HashMap args){
+		Log.d(PROXY_NAME, "generatePDF()");
+
+		if(TiApplication.isUIThread()){
+			generateiTextPDFfunction(args);
+		} else {
+			app.getCurrentActivity().runOnUiThread(new Runnable(){
+				@Override
+				public void run(){
+					generateiTextPDFfunction(args);
+				}
+			});
 		}
 	}
 	
-	// Using Deprecated HTML Worker
-	/*@Kroll.method(runOnUiThread=true)
-	public void generatePDFWithHTML (final HashMap args) {
-		Log.i(PROXY_NAME, "generatePDFWithHTML()");
-
-		PdfWriter pdfWriter = null;
-		String html = null;
-		
-		
-		if(args.containsKey("filename")){
-			Object fileName = args.get("filename");
-			if(fileName instanceof String){
-				this.fileName = (String) fileName;
-				Log.i(PROXY_NAME, "fileName: " + this.fileName);
-			}
-		} else return;
-
-		if (args.containsKey("html")) {
-			if (args.get("html") instanceof String) {
-				html = (String) args.get("html");
-				Log.i(PROXY_NAME, "html: " + html);
-			}
-		} else return;
-
-
-		//create a new document
-		Document document = new Document();
-		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
-		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
-
-		try {
-			
-			//get Instance of the PDFWriter
-			pdfWriter = PdfWriter.getInstance(document, file.getOutputStream());
-			
-			//document header attributes
-			document.addAuthor("betterThanZero");
-			document.addCreationDate();
-			document.addProducer();
-			document.addCreator("MySampleCode.com");
-			document.addTitle("Demo for iText XMLWorker");
-			document.setPageSize(PageSize.LETTER);
-			
-			//open document
-			document.open();
-			
-			//To convert a HTML file from the filesystem
-			//String File_To_Convert = "docs/SamplePDF.html";
-			//FileInputStream fis = new FileInputStream(File_To_Convert);
-			
-			HTMLWorker htmlWorker = new HTMLWorker(document);
-			//convert to PDF
-			htmlWorker.parse(new StringReader(html));
-			
-			//close the document
-			document.close();
-			//close the writer
-			pdfWriter.close();
-
-			sendCompleteEvent();
-
-		}   
-		
-		catch (FileNotFoundException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
-		} catch (IOException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
-		} catch (DocumentException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
-		}  
-	}*/
-
-	// Using Flying Saucer
-	/*@Kroll.method(runOnUiThread=true)
-	public void generatePDFWithHTML (final HashMap args) {
-		Log.i(PROXY_NAME, "generatePDFWithHTML()");
-
-		PdfWriter pdfWriter = null;
-		String html = null;
-		
-		
-		if(args.containsKey("filename")){
-			Object fileName = args.get("filename");
-			if(fileName instanceof String){
-				this.fileName = (String) fileName;
-				Log.i(PROXY_NAME, "fileName: " + this.fileName);
-			}
-		} else return;
-
-		if (args.containsKey("html")) {
-			if (args.get("html") instanceof String) {
-				html = (String) args.get("html");
-				Log.i(PROXY_NAME, "html: " + html);
-			}
-		} else return;
-
-
-		//create a new document
-		Document document = new Document();
-		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
-		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
-
-		try {
-			
-			ITextRenderer renderer = new ITextRenderer();
-			renderer.setDocumentFromString(html);
-			renderer.layout();
-			renderer.createPDF(file.getOutputStream());
-
-			sendCompleteEvent();
-		}   
-		
-		catch (FileNotFoundException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
-		} catch (IOException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
-		} catch (com.lowagie.text.DocumentException e) {
-			e.printStackTrace();
-			sendErrorEvent(e.toString());
-		}
-	}*/
-
 	//Private functions
-
-	private void generateImageFunction(HashMap args){
-		if(args.containsKey("fileName")){
-			Object fileName = args.get("fileName");
-			if(fileName instanceof String){
-				this.fileName = (String) fileName;
-				Log.i(PROXY_NAME, "fileName: " + this.fileName);
-			}
-		} else return;
-
-		if(args.containsKey("view")){
-			Object viewObject = args.get("view");
-			if(viewObject instanceof TiViewProxy){
-				TiViewProxy viewProxy = (TiViewProxy) viewObject;
-				this.view = viewProxy.getOrCreateView();
-				if(this.view == null){
-					Log.e(PROXY_NAME, "NO VIEW was created!!");
-					return;
-				}
-				Log.i(PROXY_NAME, "view: " + this.view.toString());
-			}
-		} else return;
-
-		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
-		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
-		try {
-			final int 		PDF_WIDTH 		= 612;
-			final int 		PDF_HEIGHT 		= 792;
-			Resources 		appResources 	= app.getResources();
-			OutputStream 	outputStream 	= file.getOutputStream();
-			int viewWidth = 1600;
-			int viewHeight = 1;
-			
-			WebView 		view 			= (WebView) this.view.getNativeView();
-
-			if (TiApplication.isUIThread()) {
-
-				viewWidth 		= view.capturePicture().getWidth();
-				viewHeight 		= view.capturePicture().getHeight();
-
-				if(viewWidth <= 0){
-					viewWidth = 1300;
-				}
-
-				if(viewHeight <= 0){
-					viewHeight = 2300;
-				}
-
-			} else {
-				Log.e(PROXY_NAME, "NO UI THREAD");				
-			}
-
-			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
-			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
-
-			Bitmap 			viewBitmap 		= Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
-			float 			density 		= appResources.getDisplayMetrics().density;
-
-			Canvas 			canvas 			= new Canvas(viewBitmap);
-			Matrix 			matrix 			= new Matrix();
-
-			Drawable bgDrawable = view.getBackground();
-			if (bgDrawable != null){
-				bgDrawable.draw(canvas);
-			} else {
-				canvas.drawColor(Color.WHITE);
-			}
-			view.draw(canvas);
-
-			float scaleFactorWidth 	= 1 / ((float)viewWidth  / (float)PDF_WIDTH);
-			float scaleFactorHeight = 1 / ((float)viewHeight / (float)PDF_HEIGHT);
-
-			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
-			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
-
-			matrix.setScale(scaleFactorWidth, scaleFactorWidth);
-
-			Bitmap imageBitmap = Bitmap.createBitmap(PDF_WIDTH, PDF_HEIGHT, Bitmap.Config.ARGB_8888);
-			Canvas imageCanvas = new Canvas(imageBitmap);
-			imageCanvas.drawBitmap(viewBitmap, matrix, null);
-			imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
-
-			sendCompleteEvent();
-
-		} catch (Exception exception){
-			Log.e(PROXY_NAME, "Error: " + exception.toString());
-			sendErrorEvent(exception.toString());
-		}
-	}
-
-	private void generateWebArchiveFunction(HashMap args){
-		if(args.containsKey("fileName")){
-			Object fileName = args.get("fileName");
-			if(fileName instanceof String){
-				this.fileName = (String) fileName;
-				Log.i(PROXY_NAME, "fileName: " + this.fileName);
-			}
-		} else return;
-
-		if(args.containsKey("view")){
-			Object viewObject = args.get("view");
-			if(viewObject instanceof TiViewProxy){
-				TiViewProxy viewProxy = (TiViewProxy) viewObject;
-				this.view = viewProxy.getOrCreateView();
-				if(this.view == null){
-					Log.e(PROXY_NAME, "NO VIEW was created!!");
-					return;
-				}
-				Log.i(PROXY_NAME, "view: " + this.view.toString());
-			}
-		} else return;
-
-		try{
-			WebView webView = (WebView) this.view.getNativeView();
-			webView.saveWebArchive(TiFileFactory.getDataDirectory(true).getAbsolutePath() + File.separator + this.fileName);
-			sendCompleteEvent();
-		} catch(Exception exception){
-			Log.e(PROXY_NAME, "Error: " + exception.toString());
-			sendErrorEvent(exception.toString());
-		}
-	}
-
+	
 	private void generateiTextPDFfunction(HashMap args){
-		if(args.containsKey("fileName")){
-			Object fileName = args.get("fileName");
-			if(fileName instanceof String){
-				this.fileName = (String) fileName;
-				Log.i(PROXY_NAME, "fileName: " + this.fileName);
-			}
-		} else return;
+		Log.d(PROXY_NAME, "generateiTextPDFfunction()");
+		
+		String filename = "";
+		TiUIView webview = null;
+		int quality = 100;
 
-		if(args.containsKey("view")){
-			Object viewObject = args.get("view");
-			if(viewObject instanceof TiViewProxy){
-				TiViewProxy viewProxy = (TiViewProxy) viewObject;
-				this.view = viewProxy.getOrCreateView();
-				if(this.view == null){
-					Log.e(PROXY_NAME, "NO VIEW was created!!");
-					return;
-				}
-				Log.i(PROXY_NAME, "view: " + this.view.toString());
-			}
-		} else return;
-
-		if(args.containsKey("quality")){
-			this.quality = TiConvert.toInt(args.get("quality"));
-		}
-
-		if(args.containsKey("pageSize")){
-			Object pageSize = args.get("pageSize");
-			if(pageSize instanceof String){
-				if(pageSize.equals("letter")){
-					this.pageSize = PageSize.LETTER;
-				} else if(pageSize.equals("A4")){
-					this.pageSize = PageSize.A4;
-				} else {
-					this.pageSize = PageSize.LETTER;
-				}
-			}
-		}
-
-
-		TiBaseFile 		file 			= TiFileFactory.createTitaniumFile(this.fileName, true);
-		Log.i(PROXY_NAME, "file full path: " + file.nativePath());
 		try {
+			if(args.containsKey("filename")){
+				filename = (String) args.get("filename");
+				Log.d(PROXY_NAME, "filename: " + filename);
+			} else return;
 
+			if(args.containsKey("webview")){
+				TiViewProxy viewProxy = (TiViewProxy) args.get("webview");
+				webview = viewProxy.getOrCreateView();
+				Log.d(PROXY_NAME, "webview: " + webview.toString());
+			} else return;
 
-			Resources 		appResources 	= app.getResources();
-			OutputStream 	outputStream 	= file.getOutputStream();
-			final int 		MARGIN 			= 0;
-			final float		PDF_WIDTH 		= this.pageSize.getWidth() - MARGIN * 2; // A4: 595 //Letter: 612
-			final float		PDF_HEIGHT 		= this.pageSize.getHeight() - MARGIN * 2; // A4: 842 //Letter: 792
-			final int		DEFAULT_VIEW_WIDTH = 980;
-			final int		DEFAULT_VIEW_HEIGHT = 1384;
-			int 			viewWidth 		= DEFAULT_VIEW_WIDTH;
-			int 			viewHeight 		= DEFAULT_VIEW_HEIGHT;
+			if(args.containsKey("quality")){
+				quality = TiConvert.toInt(args.get("quality"));
+			}
+
+			TiBaseFile file = TiFileFactory.createTitaniumFile(filename, true);
+			Log.d(PROXY_NAME, "file full path: " + file.nativePath());
+
+			OutputStream outputStream 	= file.getOutputStream();
+			final int MARGIN = 0;
+			final float PDF_WIDTH = PageSize.LETTER.getWidth() - MARGIN * 2; // A4: 595 //Letter: 612
+			final float PDF_HEIGHT = PageSize.LETTER.getHeight() - MARGIN * 2; // A4: 842 //Letter: 792
+			final int DEFAULT_VIEW_WIDTH = 980;
+			final int DEFAULT_VIEW_HEIGHT = 1384;
+			int viewWidth = DEFAULT_VIEW_WIDTH;
+			int viewHeight = DEFAULT_VIEW_HEIGHT;
 			
-			Document 		pdfDocument 	= new Document(this.pageSize, MARGIN, MARGIN, MARGIN, MARGIN);
-			PdfWriter 		docWriter 		= PdfWriter.getInstance(pdfDocument, outputStream);
+			Document pdfDocument 	= new Document(PageSize.LETTER, MARGIN, MARGIN, MARGIN, MARGIN);
+			PdfWriter docWriter = PdfWriter.getInstance(pdfDocument, outputStream);
 
-			Log.i(PROXY_NAME, "PDF_WIDTH: " + PDF_WIDTH);
-			Log.i(PROXY_NAME, "PDF_HEIGHT: " + PDF_HEIGHT);
+			Log.d(PROXY_NAME, "PDF_WIDTH: " + PDF_WIDTH);
+			Log.d(PROXY_NAME, "PDF_HEIGHT: " + PDF_HEIGHT);
 
 
-			WebView 		view 			= (WebView) this.view.getNativeView();
+			WebView view = (WebView) webview.getNativeView();
 
 			if (TiApplication.isUIThread()) {
 
-				viewWidth 		= view.capturePicture().getWidth();
-				viewHeight 		= view.capturePicture().getHeight();
+				viewWidth = view.capturePicture().getWidth();
+				viewHeight = view.capturePicture().getHeight();
 
 
 				if(viewWidth <= 0){
@@ -612,14 +242,14 @@ public class PdfcreatorModule extends KrollModule
 			}
 
 			view.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-			Log.i(PROXY_NAME, "viewWidth: " + viewWidth);
-			Log.i(PROXY_NAME, "viewHeight: " + viewHeight);
+			Log.d(PROXY_NAME, "viewWidth: " + viewWidth);
+			Log.d(PROXY_NAME, "viewHeight: " + viewHeight);
 
-			float scaleFactorWidth 	= 1 / ((float)viewWidth  / PDF_WIDTH);
-			float scaleFactorHeight = 1 / ((float)viewHeight / PDF_HEIGHT);
+			float scaleFactorWidth 	= 1 / (viewWidth  / PDF_WIDTH);
+			float scaleFactorHeight = 1 / (viewHeight / PDF_HEIGHT);
 
-			Log.i(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
-			Log.i(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
+			Log.d(PROXY_NAME, "scaleFactorWidth: " + scaleFactorWidth);
+			Log.d(PROXY_NAME, "scaleFactorHeight: " + scaleFactorHeight);
 
 
 			Bitmap viewBitmap = Bitmap.createBitmap(viewWidth, viewHeight, Bitmap.Config.ARGB_8888);
@@ -637,9 +267,9 @@ public class PdfcreatorModule extends KrollModule
 			}
 			view.draw(viewCanvas);
 
-			TiBaseFile pdfImg = createTempFile();
+			TiBaseFile pdfImg = createTempFile(filename);
 
-			viewBitmap.compress(Bitmap.CompressFormat.JPEG, this.quality, pdfImg.getOutputStream());
+			viewBitmap.compress(Bitmap.CompressFormat.PNG, quality, pdfImg.getOutputStream());
 			
 			FileInputStream pdfImgInputStream = new FileInputStream(pdfImg.getNativeFile());
 			byte[] pdfImgBytes = IOUtils.toByteArray(pdfImgInputStream);
@@ -662,40 +292,40 @@ public class PdfcreatorModule extends KrollModule
 				pageImage.setAbsolutePosition(0f, -yFactor);
 				pdfDocument.add(pageImage); 
 
-				Log.i(PROXY_NAME, "yFactor: " + yFactor);
+				Log.d(PROXY_NAME, "yFactor: " + yFactor);
 			}while(yFactor > 0);
 
 			pdfDocument.close();
 
-			sendCompleteEvent();
+			sendCompleteEvent(filename);
 
 		} catch (Exception exception){
-			Log.e(PROXY_NAME, "Error: " + exception.toString());
-			sendErrorEvent(exception.toString());
+			sendErrorEvent(exception);
 		}
 	}
 
 	// method to invoke success callback
-	private void sendCompleteEvent() {
+	private void sendCompleteEvent(String filename) {
 		if (this.hasListeners("complete")) {
 			KrollDict props = new KrollDict();
-			props.put("fileName", this.fileName);
+			props.put("filename", filename);
 			this.fireEvent("complete", props);
 		}
 	}
 
 	// method to invoke error callback
-	private void sendErrorEvent(String message) {
+	private void sendErrorEvent(Exception error) {
+		Log.e(PROXY_NAME, "Error", error);
+
 		if (this.hasListeners("error")) {
 			KrollDict props = new KrollDict();
-			props.put("message", message);
+			props.put("message", error.toString());
 			this.fireEvent("error", props);
 		}
 	}
 
-	private TiBaseFile createTempFile(){
-		String fileName = Long.toString( new Date().getTime() ) + ".png";
-		TiBaseFile file = TiFileFactory.createTitaniumFile(this.fileName, true);
+	private TiBaseFile createTempFile(String filename){
+		TiBaseFile file = TiFileFactory.createTitaniumFile(filename, true);
 		file.getNativeFile().deleteOnExit();
 
 		return file;
