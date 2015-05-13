@@ -4,3 +4,4 @@ build
 .apt_generated
 libs
 dist/modules
+*.sublime-workspace
