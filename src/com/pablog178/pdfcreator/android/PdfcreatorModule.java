@@ -15,6 +15,9 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
+import java.util.Set;
+import java.io.StringReader;
+import java.io.StringWriter;
 
 import org.apache.commons.io.IOUtils;
 import org.appcelerator.kroll.KrollDict;
@@ -38,10 +41,26 @@ import android.webkit.WebView;
 
 import com.itextpdf.text.Document;
 import com.itextpdf.text.Image;
+import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.FontFactoryImp;
 import com.itextpdf.text.PageSize;
 import com.itextpdf.text.pdf.PdfWriter;
+import com.itextpdf.text.pdf.BaseFont;
+import com.itextpdf.tool.xml.XMLWorker;
 import com.itextpdf.tool.xml.XMLWorkerHelper;
-
+import com.itextpdf.tool.xml.XMLWorkerFontProvider;
+import com.itextpdf.tool.xml.Pipeline;
+import com.itextpdf.tool.xml.pipeline.html.HtmlPipelineContext;
+import com.itextpdf.tool.xml.pipeline.css.CSSResolver;
+import com.itextpdf.tool.xml.pipeline.css.CssResolverPipeline;
+import com.itextpdf.tool.xml.pipeline.html.HtmlPipeline;
+import com.itextpdf.tool.xml.pipeline.end.PdfWriterPipeline;
+import com.itextpdf.tool.xml.parser.XMLParser;
+import com.itextpdf.tool.xml.html.CssAppliersImpl;
+import com.itextpdf.tool.xml.pipeline.html.AbstractImageProvider;
+import com.itextpdf.tool.xml.html.Tags;
 
 @Kroll.module(name="Pdfcreator", id="com.pablog178.pdfcreator.android")
 public class PdfcreatorModule extends KrollModule
@@ -86,6 +105,7 @@ public class PdfcreatorModule extends KrollModule
 		String html = "";
 		String author = "";
 		String filename = "";
+		final float marginPt = 28.35f;//1cm == 28.35pt
 
 		try {
 			if(args.containsKey("filename")){
@@ -104,22 +124,18 @@ public class PdfcreatorModule extends KrollModule
 			}
 
 			//create a new document
-			Document document = new Document();
+			Document document = new Document(PageSize.LETTER, marginPt, marginPt, marginPt, 0);
 			TiBaseFile file = TiFileFactory.createTitaniumFile(filename, true);
 			
-			InputStream htmlIS = new ByteArrayInputStream(html.getBytes("UTF-8"));
-			OutputStream xhtmlOS = new ByteArrayOutputStream();
+			// Parse to XHTML
+			StringWriter xhtmlWriter = new StringWriter();
 			Tidy tidy = new Tidy();
 			
 			// tidy.setXHTML(true);
 			tidy.setXmlOut(true);
-			tidy.parse(htmlIS, xhtmlOS);
+			tidy.parse(new StringReader(html), xhtmlWriter);
+			String xhtml = xhtmlWriter.toString();
 
-			String xhtml = xhtmlOS.toString();
-			
-			htmlIS.close();
-			xhtmlOS.close();
-			
 
 			//get Instance of the PDFWriter
 			PdfWriter pdfWriter = PdfWriter.getInstance(document, file.getOutputStream());
@@ -131,11 +147,35 @@ public class PdfcreatorModule extends KrollModule
 			
 			//open document
 			document.open();
+
+			// From Stack Overflow lol
 			
+			MyFontFactory fontFactory = new MyFontFactory();
+			FontFactory.setFontImp(fontFactory);
+
+			// HtmlPipelineContext htmlContext = new HtmlPipelineContext(new CssAppliersImpl(fontFactory));
+			HtmlPipelineContext htmlContext = new HtmlPipelineContext(null);
+			htmlContext.setTagFactory(Tags.getHtmlTagProcessorFactory());
+			CSSResolver cssResolver = XMLWorkerHelper.getInstance().getDefaultCssResolver(true);
+			Pipeline<?> pipeline = new CssResolverPipeline(cssResolver, new HtmlPipeline(htmlContext, new PdfWriterPipeline(document, pdfWriter)));
+			XMLWorker worker = new XMLWorker(pipeline, true);
+			XMLParser p = new XMLParser(worker);
+			p.parse(new StringReader(xhtml));
+			
+			// Finish SO c&P
+
+			
+			// Older code
+			/*
+			// Font Provider creation
+			MyFontFactory fontProvider = new MyFontFactory();
+			// fontProvider.register("/DroidSans.ttf");
+
 			//get the XMLWorkerHelper Instance
 			XMLWorkerHelper worker = XMLWorkerHelper.getInstance();
 			//convert to PDF
-			worker.parseXHtml(pdfWriter, document, new ByteArrayInputStream(xhtml.getBytes("UTF-8"))); //Load xhtml
+			worker.parseXHtml(pdfWriter, document, new ByteArrayInputStream(xhtml.getBytes("UTF-8")), null, fontProvider); //Load xhtml
+			*/
 			
 			//close the document
 			document.close();
@@ -329,6 +369,14 @@ public class PdfcreatorModule extends KrollModule
 		file.getNativeFile().deleteOnExit();
 
 		return file;
+	}
+
+	private class MyFontFactory extends FontFactoryImp {
+		@Override
+		public Font getFont(String fontname, String encoding, boolean embedded, float size, int style, BaseColor color, boolean cached) {
+			Log.i(PROXY_NAME, "=fontname: " + fontname + " =encoding: " + encoding + " =embedded : " + embedded + " =size: " + size + " =style: " + style + " =BaseColor: " + color);
+			return super.getFont("/system/fonts/Roboto.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, size, style, color, cached);
+		}
 	}
 }
 
