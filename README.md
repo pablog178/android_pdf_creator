@@ -38,7 +38,9 @@ Titanium Module for generating PDF files based on HTML or a WebView content
 		// Generate a PDF based on HTML
 		pdfCreator.generatePDFWithHTML({
 			html : '<html><body><h1>Hello World!</h1></body></html>',
-			filename : 'hello.pdf'
+			filename : 'hello.pdf',
+			landscape: true, // print the document in horizontal (default is false => vertical)
+			letter: true // print the document with letter size (default is false => A4)
 		});
 		
 		//Generate a PDF based on a webview

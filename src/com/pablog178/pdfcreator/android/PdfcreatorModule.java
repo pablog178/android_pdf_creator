@@ -46,6 +46,7 @@ import com.itextpdf.text.Font;
 import com.itextpdf.text.FontFactory;
 import com.itextpdf.text.FontFactoryImp;
 import com.itextpdf.text.PageSize;
+import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.tool.xml.XMLWorker;
@@ -105,6 +106,8 @@ public class PdfcreatorModule extends KrollModule
 		String html = "";
 		String author = "";
 		String filename = "";
+		Boolean landscape = Boolean.FALSE;
+		Boolean letter = Boolean.FALSE;
 		final float marginPt = 28.35f;//1cm == 28.35pt
 
 		try {
@@ -123,8 +126,26 @@ public class PdfcreatorModule extends KrollModule
 				Log.d(PROXY_NAME, "author: " + author);
 			}
 
+			if (args.containsKey("landscape")){
+				landscape = (Boolean) args.get("landscape");
+				Log.d(PROXY_NAME, "lanscape: " + landscape);
+			}
+
+			if (args.containsKey("letter")){
+				letter = (Boolean) args.get("letter");
+				Log.d(PROXY_NAME, "letter: " + letter);
+			}
+
+			Rectangle size = PageSize.A4;
+			if (letter){
+				size = PageSize.LETTER;
+			}
+			if (landscape){
+				size = size.rotate();
+			}
+			
 			//create a new document
-			Document document = new Document(PageSize.LETTER, marginPt, marginPt, marginPt, 0);
+			Document document = new Document(size, marginPt, marginPt, marginPt, 0);
 			TiBaseFile file = TiFileFactory.createTitaniumFile(filename, true);
 			
 			// Parse to XHTML
@@ -143,7 +164,7 @@ public class PdfcreatorModule extends KrollModule
 			//document header attributes
 			document.addAuthor(author);
 			document.addCreationDate();
-			document.setPageSize(PageSize.LETTER);
+			document.setPageSize(size);
 			
 			//open document
 			document.open();
@@ -222,6 +243,8 @@ public class PdfcreatorModule extends KrollModule
 		String filename = "";
 		TiUIView webview = null;
 		int quality = 100;
+		Boolean landscape = Boolean.FALSE;
+		Boolean letter = Boolean.FALSE;
 
 		try {
 			if(args.containsKey("filename")){
@@ -239,19 +262,37 @@ public class PdfcreatorModule extends KrollModule
 				quality = TiConvert.toInt(args.get("quality"));
 			}
 
+			if (args.containsKey("landscape")){
+				landscape = (Boolean) args.get("landscape");
+				Log.d(PROXY_NAME, "lanscape: " + landscape);
+			}
+
+			if (args.containsKey("letter")){
+				letter = (Boolean) args.get("letter");
+				Log.d(PROXY_NAME, "letter: " + letter);
+			}
+
 			TiBaseFile file = TiFileFactory.createTitaniumFile(filename, true);
 			Log.d(PROXY_NAME, "file full path: " + file.nativePath());
 
-			OutputStream outputStream 	= file.getOutputStream();
+			Rectangle size = PageSize.A4;
+			if (letter){
+				size = PageSize.LETTER;
+			}
+			if (landscape){
+				size = size.rotate();
+			}
+
+			OutputStream outputStream = file.getOutputStream();
 			final int MARGIN = 0;
-			final float PDF_WIDTH = PageSize.LETTER.getWidth() - MARGIN * 2; // A4: 595 //Letter: 612
-			final float PDF_HEIGHT = PageSize.LETTER.getHeight() - MARGIN * 2; // A4: 842 //Letter: 792
+			final float PDF_WIDTH = size.getWidth() - MARGIN * 2; // A4: 595 //Letter: 612
+			final float PDF_HEIGHT = size.getHeight() - MARGIN * 2; // A4: 842 //Letter: 792
 			final int DEFAULT_VIEW_WIDTH = 980;
 			final int DEFAULT_VIEW_HEIGHT = 1384;
 			int viewWidth = DEFAULT_VIEW_WIDTH;
 			int viewHeight = DEFAULT_VIEW_HEIGHT;
 			
-			Document pdfDocument 	= new Document(PageSize.LETTER, MARGIN, MARGIN, MARGIN, MARGIN);
+			Document pdfDocument = new Document(size, MARGIN, MARGIN, MARGIN, MARGIN);
 			PdfWriter docWriter = PdfWriter.getInstance(pdfDocument, outputStream);
 
 			Log.d(PROXY_NAME, "PDF_WIDTH: " + PDF_WIDTH);
@@ -276,7 +317,7 @@ public class PdfcreatorModule extends KrollModule
 
 
 			} else {
-				Log.e(PROXY_NAME, "NO UI THREAD");				
+				Log.e(PROXY_NAME, "NO UI THREAD");
 				viewWidth = DEFAULT_VIEW_WIDTH;
 				viewHeight = DEFAULT_VIEW_HEIGHT;
 			}
